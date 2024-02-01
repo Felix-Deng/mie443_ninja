@@ -153,17 +153,17 @@ int main(int argc, char **argv)
         */
 
         // nothing in front (>=0.7), forward 0.25 with self correction in yaw angle
-        else if (minLaserDist >= 0.5 && !any_bumper_pressed){
-            ROS_INFO("Cruising");
-            linear = 0.25;
-            angular = 0;
-            if (minLaserDist >= 0.7){
-                ROS_INFO("Large space detected, turn around and scan");
-                linear = 0.0;
-                angular = M_PI / 10;
-            }
+        else if (minLaserDist >= 0.5 && minLaserDist <= 1. && !any_bumper_pressed){
+            ROS_INFO("Turn around until there is large space");
+            linear = 0.0;
+            angular = M_PI / 10;
         }
-        
+        else if (minLaserDist > 1. && !any_bumper_pressed){
+            ROS_INFO("Move forward");
+            linear = 0.25;
+            angular = 0.0;
+        }
+
         else {
             angular = 0.0; 
             linear = 0.0; 
