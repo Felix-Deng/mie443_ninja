@@ -77,7 +77,7 @@ int main(int argc, char **argv)
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
 
-
+    /*
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
         
@@ -109,6 +109,52 @@ int main(int argc, char **argv)
                 angular = 0;
             }
         }
+        else {
+            angular = 0.0; 
+            linear = 0.0; 
+        }
+    */
+
+    //MAYBE
+    //float angular = 0.0;
+    //float linear = 0.0;
+
+    while(ros::ok() && secondsElapsed <= 480) {
+        ros::spinOnce();
+        
+        // Check if any of the bumpers were pressed 
+        bool any_bumper_pressed = false; 
+        for (uint32_t b_idx=0; b_idx < N_BUMPER; ++b_idx){
+            any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED); 
+        }
+
+        // Control logic after bumpers are being pressed 
+        ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
+        
+
+        // object detected (<0.5), stop and turn (ideally turn to the direction with the minLaserDist, add a delay[s])
+        if (!any_bumper_pressed && minLaserDist < 0.7){
+            ROS_INFO("Object Detected! Stop and turn!")
+            angular = M_PI / 6; 
+            linear = 0.0; 
+        }
+        
+        /*
+        // nothing in front (<0.7), slow down
+        else if(!any_bumper_pressed && minLaserDist < 0.7){
+            ROS_INFO("Object Detected! Slowing down...")
+            angular = 0.0; 
+            linear = 0.1; 
+        }
+        */
+
+        // nothing in front (>=0.7), forward 0.25 with self correction in yaw angle
+        else if (minLaserDist >= 0.7 && !any_bumper_pressed){
+            ROS_INFO("Cruising")
+            linear = 0.25;
+            angular = 0;
+        }
+        
         else {
             angular = 0.0; 
             linear = 0.0; 
