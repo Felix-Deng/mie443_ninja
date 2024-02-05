@@ -18,7 +18,7 @@
 #define RAD2DEG(rad) ((rad) * 180. / M_PI)
 #define DEG2RAD(deg) ((deg) * M_PI / 180.)
 #define POS_TOL (0.01) // Tolerance for positional accuracy 
-#define YAW_TOL (0.01) // Tolerance for yaw angle accuracy 
+#define YAW_TOL (0.01) // Tolerance for yaw angle accuracy (in rad)
 
 float angular = 0.0;
 float linear = 0.0;
@@ -50,7 +50,6 @@ float dir_w[2] = {-step_size, 0.0};
 float dir_e[2] = {step_size, 0.0}; 
 float dir_n[2] = {0.0, step_size}; 
 float dir_s[2] = {0.0, -step_size};
-
 std::map<char, float* []> DIRECTION; 
 DIRECTION['w'] = &dir_w; 
 DIRECTION['e'] = &dir_e; 
@@ -72,11 +71,11 @@ Node* add_node(Node* c_node, char dir){
 
     if (dir == 'w') {
         nodes[-1].east = c_node; 
-        nodes[-1].source = 'w'; 
+        nodes[-1].source = 'e'; 
     }
     else if (dir == 'e') {
         nodes[-1].west = c_node; 
-        nodes[-1].source = 'e'; 
+        nodes[-1].source = 'w'; 
     }
     else if (dir == 'n') {
         nodes[-1].south = c_node; 
@@ -129,10 +128,28 @@ bool check_node_filled(Node* c_node, char dir){
 /*************************** Decisions ***************************/ 
 char recom_dir(Node* c_node) {
     // Recommend direction to be explored from the current node c_node 
-    // Return 'b' if go back one step to c_node->source 
-    // TODO 
+    char avail_dirs[8] = {'n', 'e', 's', 'w', 'n', 'e', 's', 'w'}; 
+    char *s_dir; 
+    if (abs(yaw - M_PI / 2.) <= YAW_TOL){
+        s_dir = &avail_dirs[0]; 
+    }
+    else if (abs(yaw) <= YAW_TOL){
+        s_dir = &avail_dirs[1]; 
+    }
+    else if (abs(yaw - 3. / 2. * M_PI) <= YAW_TOL){
+        s_dir = &avail_dirs[2]; 
+    }
+    else {
+        s_dir = &avail_dirs[3]; 
+    }
 
-    return 'l'; 
+    for (int i = 0; i < 4; i++){
+        if (!check_node_filled(c_node, *(s_dir + i))){
+            return *(s_dir + i); 
+        }
+    }
+    return 'b'; // go back one step to c_node->source 
+
 }
 
 std::vector<Node*> solve_graph_home(Node* s_node, Node *c_node) {
