@@ -11,6 +11,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <algorithm>
 
 #include <chrono>
 
@@ -158,12 +159,89 @@ char recom_dir(Node* c_node) {
 
 }
 
-std::vector<Node*> solve_graph_home(Node* s_node, Node *c_node) {
-    // Given the current Node, find the shortest path back to the source Node 
-    std::vector<Node> path; // ordered from source Node s_node to current Node c_node
-    // TODO 
+float ida_start_searched(std::vector<Node*>* path, float g, float bound) {
+    // Implemented the iterative deepening A* search (helper function of solve_graph_home)
+    Node node = *((*path)[-1]); 
+    float f = g + abs(node.pos_x) + abs(node.pos_y); // use Manhattan distance for heuristic cost 
+    if (f > bound) {
+        // Search bound reached 
+        return f; 
+    }
+    if (node.source == 'X') {
+        // Found the source node 
+        return 0.; 
+    }
+    float min_cost = std::numeric_limits<float>::max(); 
+    if (node.north != NULL && std::count((*path).begin(), (*path).end(), node.north)){
+        path->push_back(node.north); 
+        float t = ida_start_searched(path, g + 1., bound); 
+        if (t == 0) {
+            // Found the source node 
+            return 0.; 
+        }
+        if (t < min_cost) {
+            min_cost = t; 
+        }
+        path->pop_back(); 
+    }
+    if (node.west != NULL && std::count((*path).begin(), (*path).end(), node.west)){
+        path->push_back(node.west); 
+        float t = ida_start_searched(path, g + 1., bound); 
+        if (t == 0) {
+            // Found the source node 
+            return 0.; 
+        }
+        if (t < min_cost) {
+            min_cost = t; 
+        }
+        path->pop_back(); 
+    }
+    if (node.south != NULL && std::count((*path).begin(), (*path).end(), node.south)){
+        path->push_back(node.south); 
+        float t = ida_start_searched(path, g + 1., bound); 
+        if (t == 0) {
+            // Found the source node 
+            return 0.; 
+        }
+        if (t < min_cost) {
+            min_cost = t; 
+        }
+        path->pop_back(); 
+    }
+    if (node.east != NULL && std::count((*path).begin(), (*path).end(), node.east)){
+        path->push_back(node.east); 
+        float t = ida_start_searched(path, g + 1., bound); 
+        if (t == 0) {
+            // Found the source node 
+            return 0.; 
+        }
+        if (t < min_cost) {
+            min_cost = t; 
+        }
+        path->pop_back(); 
+    }
+    return min_cost; 
+}
 
-    return path; 
+std::vector<Node*> solve_graph_home(Node *c_node) {
+    // Given the current Node, find the shortest path back to the source Node 
+    std::vector<Node*> path; 
+    
+    float bound = abs(c_node->pos_x) + abs(c_node->pos_y); // initial boundary = heuristic of c_node 
+    float t; 
+    path.push_back(c_node); 
+    while (true){
+        t = ida_start_searched(&path, 0, bound); 
+        if (t == 0) {
+            std::reverse(path.begin(), path.end()); 
+            return path; // ordered from source Node to current Node c_node
+        }
+        if (t == std::numeric_limits<float>::max()){
+            ROS_INFO("NO PATH FOUND TO RETURN TO SOURCE"); 
+            return {}; 
+        }
+        bound = t; 
+    }
 }
 
 /*************************** Movements ***************************/ 
@@ -421,7 +499,7 @@ int main(int argc, char **argv)
                             break; 
                         }
                         // Solve current graph to find shortest path to source (DFS)
-                        path_to_source = solve_graph_home(*source_node, curr_node); 
+                        path_to_source = solve_graph_home(curr_node); 
                     }
                     // Execute path to home 
                     float targets[3]; 
