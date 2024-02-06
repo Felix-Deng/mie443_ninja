@@ -33,10 +33,10 @@ int32_t nLasers=0, desiredNLasers=0, desiredAngle = 20;
 /*************************** Graph Setup ***************************/ 
 // Store gridpoint geometric and relational data in searched world 
 struct Node {
-    Node *north = NULL; 
-    Node *west = NULL; 
-    Node *south = NULL; 
-    Node *east = NULL; 
+    Node *north; 
+    Node *west; 
+    Node *south; 
+    Node *east; 
     char source; 
     float pos_x, pos_y; 
 }; 
@@ -50,40 +50,46 @@ float dir_w[2] = {-step_size, 0.0};
 float dir_e[2] = {step_size, 0.0}; 
 float dir_n[2] = {0.0, step_size}; 
 float dir_s[2] = {0.0, -step_size};
-std::map<char, float* []> DIRECTION; 
-DIRECTION['w'] = &dir_w; 
-DIRECTION['e'] = &dir_e; 
-DIRECTION['n'] = &dir_n; 
-DIRECTION['s'] = &dir_s; 
+std::map<char, float(*)[2]> DIRECTION = {
+    {'w', &dir_w}, 
+    {'e', &dir_e}, 
+    {'n', &dir_n}, 
+    {'s', &dir_s}
+}; 
 
 // Map direction char to yaw 
-std::map<char, float> DIR2YAW; 
-DIR2YAW['e'] = 0.0; 
-DIR2YAW['n'] = M_PI / 2.0; 
-DIR2YAW['e'] = M_PI; 
-DIR2YAW['e'] = 3.0 / 2.0 * M_PI; 
+std::map<char, float> DIR2YAW = {
+    {'e', 0.0}, 
+    {'n', M_PI / 2.}, 
+    {'w', M_PI}, 
+    {'s', 3. / 2. * M_PI}
+}; 
 
 Node* add_node(Node* c_node, char dir){
     // Initiate a node during mapping (before moving to the new node)
     nodes.push_back(Node()); // reserve storage address in std::vector 
-    nodes[-1].pos_x = posX + *DIRECTION.at(dir); 
-    nodes[-1].pos_y = posY + *(DIRECTION.at(dir)+1); 
+    nodes[-1].pos_x = posX + *(DIRECTION[dir][0]); 
+    nodes[-1].pos_y = posY + *(DIRECTION[dir][0]+1); 
 
     if (dir == 'w') {
         nodes[-1].east = c_node; 
         nodes[-1].source = 'e'; 
+        c_node->west = &nodes[-1]; 
     }
     else if (dir == 'e') {
         nodes[-1].west = c_node; 
         nodes[-1].source = 'w'; 
+        c_node->east = &nodes[-1]; 
     }
     else if (dir == 'n') {
         nodes[-1].south = c_node; 
         nodes[-1].source = 's'; 
+        c_node->north = &nodes[-1]; 
     }
     else if (dir == 's') {
         nodes[-1].north = c_node; 
         nodes[-1].source = 'n'; 
+        c_node->south = &nodes[-1]; 
     }
 
     return &nodes[-1]; 
@@ -163,7 +169,14 @@ std::vector<Node*> solve_graph_home(Node* s_node, Node *c_node) {
 /*************************** Movements ***************************/ 
 float set_angular(float target, float current) {
     // Return the required angular velocity to reach target yaw 
-    float diff_yaw = (RAD2DEG(target - current) + 180.) % 360. - 180.; 
+    float diff_yaw = RAD2DEG(target - current); 
+    if (diff_yaw > 180) {
+        diff_yaw -= 360; 
+    }
+    else if (diff_yaw < -180) {
+        diff_yaw += 360; 
+    }
+
     if (abs(diff_yaw) <= YAW_TOL) {
         return 0.0; 
     }
@@ -189,28 +202,27 @@ float set_linear(float target, float current) {
     }
 }
 
-float* set_target(Node* c_node, Node* n_node) {
-    // Return targets given current Node c_node and next Node n_node 
-    float targets[3]; // {target_x, target_y, target_yaw}
-    float targets[0] = n_node->pos_x; 
-    float targets[1] = n_node->pos_y; 
-    if (abs(targets[0] - c_node->pos_x) <= POS_TOL){
-        if (targets[1] > c_node->pos_y){
-            targets[2] = M_PI / 2.; 
+void set_target(Node* c_node, Node* n_node, float *targets) {
+    // Set targets given current Node c_node and next Node n_node 
+    // float targets[3] = {target_x, target_y, target_yaw}
+    *targets = n_node->pos_x; 
+    *(targets + 1) = n_node->pos_y; 
+    if (abs(*targets - c_node->pos_x) <= POS_TOL){
+        if (*(targets + 1) > c_node->pos_y){
+            *(targets + 2) = M_PI / 2.; 
         }
         else {
-            targets[2] = 3. / 2. * M_PI; 
+            *(targets + 2) = 3. / 2. * M_PI; 
         }
     }
     else {
-        if (targets[0] > c_node->pos_x){
-            targets[2] = 0.; 
+        if (*targets > c_node->pos_x){
+            *(targets + 2) = 0.; 
         }
         else {
-            targets[2] = M_PI; 
+            *(targets + 2) = M_PI; 
         }
     }
-    return targets; 
 }
 
 
@@ -282,7 +294,7 @@ int main(int argc, char **argv)
     // Store path to the source Node if going home 
     std::vector<Node> path_to_source; 
     // Keep track of if during exploration
-    std::optional<char> exploring; 
+    char exploring; 
 
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
@@ -296,7 +308,7 @@ int main(int argc, char **argv)
         // Control logic after bumpers are being pressed 
         ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
 
-        if (any_bumper_pressed || minLaserDist <= 0.2) {
+        if (any_bumper_pressed || minLaserDist <= 0.1) {
             // TBD: Pending decisions 
             // TODO: also add laser distance checking to if statement 
             angular = 0.0; 
@@ -360,7 +372,7 @@ int main(int argc, char **argv)
                 // At target position, make decisions for next move
                 if (secondsElapsed <= 120) {
                     // Sufficient time left, keep exploring 
-                    if (exploring.has_value()){
+                    if (exploring != '\0'){
                         // An exploration step was just completed 
                         if (minLaserDist <= step_size) {
                             // Obstacles in front, cannot move 
@@ -388,7 +400,7 @@ int main(int argc, char **argv)
                                     curr_node = curr_node->south; 
                                 }
                             }
-                            exploring = {}; 
+                            exploring = '\0'; 
                         }
                     }
                     else {
@@ -398,7 +410,7 @@ int main(int argc, char **argv)
                             // Go back to source 
                             next_dir = curr_node->source; 
                         }
-                        targetYaw = DIR2YAW[next_dir]
+                        targetYaw = DIR2YAW[next_dir]; 
                     }
                 }
                 else {
@@ -412,10 +424,11 @@ int main(int argc, char **argv)
                         path_to_source = solve_graph_home(*source_node, curr_node); 
                     }
                     // Execute path to home 
-                    float* targets = set_target(curr_node, &path_to_source[-1]); 
-                    targetX = &targets[0]; 
-                    targetY = &targets[1]; 
-                    targetYaw = &targets[2]; 
+                    float targets[3]; 
+                    set_target(curr_node, &path_to_source[-1], targets); 
+                    targetX = *targets; 
+                    targetY = *(targets + 1); 
+                    targetYaw = *(targets + 2); 
                     curr_node = &path_to_source[-1]; 
                     path_to_source.pop_back(); 
                 }
