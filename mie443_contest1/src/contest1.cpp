@@ -370,7 +370,7 @@ int main(int argc, char **argv)
     // Keep track of current node 
     Node *curr_node = source_node; 
     // Store path to the source Node if going home 
-    std::vector<Node> path_to_source; 
+    std::vector<Node*> path_to_source; 
     // Keep track of if during exploration
     char exploring; 
 
@@ -503,11 +503,11 @@ int main(int argc, char **argv)
                     }
                     // Execute path to home 
                     float targets[3]; 
-                    set_target(curr_node, &path_to_source[-1], targets); 
+                    set_target(curr_node, &(*(path_to_source)[-1]), targets); 
                     targetX = *targets; 
                     targetY = *(targets + 1); 
                     targetYaw = *(targets + 2); 
-                    curr_node = &path_to_source[-1]; 
+                    curr_node = &(*(path_to_source)[-1]); 
                     path_to_source.pop_back(); 
                 }
             }
