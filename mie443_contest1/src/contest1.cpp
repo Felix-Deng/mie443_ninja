@@ -62,21 +62,24 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
 void set_vel(bool bumper_pressed, float min_laser_dist, float *lin_vel, float *ang_vel) {
     if (bumper_pressed || min_laser_dist >= 1e6){
         // Bumpers are pressed or about to hit obstacles 
-        *ang_vel = 0.0; 
+        desiredAngle = 10; 
+        *ang_vel = M_PI / 6.; 
         *lin_vel = -0.2; 
     }
-    else if (min_laser_dist < 0.5) {
+    else if (min_laser_dist < 0.7) {
         // About to hit obstacles and turn 
-        *ang_vel = M_PI / 6;
+        desiredAngle = 10; 
+        *ang_vel = M_PI / 6.;
         *lin_vel = 0.0;
     }
-    else if (min_laser_dist < 0.7){
-        // Getting close to obstacles and decelerate 
-        *ang_vel = 0.0; 
-        *lin_vel = 0.1; 
-    }
+    // else if (min_laser_dist < 1.){
+    //     // Getting close to obstacles and decelerate 
+    //     *ang_vel = 0.0; 
+    //     *lin_vel = 0.25; 
+    // }
     else {
         // Nothing in front and move forward at full speed 
+        desiredAngle = 20; 
         *lin_vel = 0.25;
         *ang_vel = 0.0;
     }
@@ -194,12 +197,13 @@ int main(int argc, char **argv)
         }
         else {
             // Stage 2: random walk within the pre-explored boundary 
-            if (abs(yaw - target_yaw) <= 0.1) {
+            if (abs(yaw - target_yaw) <= 0.05) {
                 target_yaw = yaw; // refresh for numerical accuracy 
                 int prob = std::rand() % 10; // random probability between 0 and 9 
-                if (prob <= 2) {
+                if (prob <= 1) {
                     // Change direction of exploration 
                     angular = 0.; 
+                    linear = 0.; 
                     target_yaw = choose_dir(); 
                 }
                 else {
@@ -210,6 +214,7 @@ int main(int argc, char **argv)
             else {
                 // Rotate to target yaw 
                 set_dir(target_yaw, yaw, &angular); 
+                linear = 0.; 
             }
             update_pos_history(); 
         }
