@@ -18,7 +18,8 @@
 #define DEG2RAD(deg) ((deg) * M_PI / 180.)
 
 float angular = 0.0;
-float linear = 0.0;
+float linear = 0.0; 
+float target_yaw;  // target position
 
 float posX = 0.0, posY = 0.0, yaw = 0.0; // actual location recording 
 float max_x = 0.0, min_x = 0.0, max_y = 0.0, min_y = 0.0; // search history tracking 
@@ -65,12 +66,14 @@ void set_vel(bool bumper_pressed, float min_laser_dist, float *lin_vel, float *a
         desiredAngle = 10; 
         *ang_vel = M_PI / 6.; 
         *lin_vel = -0.1; 
+        target_yaw = yaw; 
     }
     else if (min_laser_dist < 0.7) {
         // About to hit obstacles and turn 
         desiredAngle = 10; 
         *ang_vel = M_PI / 6.;
         *lin_vel = 0.0;
+        target_yaw = yaw; 
     }
     // else if (min_laser_dist < 1.){
     //     // Getting close to obstacles and decelerate 
@@ -173,10 +176,6 @@ int main(int argc, char **argv)
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
 
-    // Target position 
-    float target_yaw; 
-    std::chrono::time_point<std::chrono::system_clock> timer_stage2; 
-
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
         
@@ -199,26 +198,22 @@ int main(int argc, char **argv)
         else {
             // Stage 2: random walk within the pre-explored boundary 
             if (abs(yaw - target_yaw) <= 0.2) {
-                target_yaw = yaw; // refresh for numerical accuracy 
                 int prob = std::rand() % 10; // random probability between 0 and 9 
                 if (prob <= 1) {
                     // Change direction of exploration 
                     angular = 0.; 
                     linear = 0.; 
                     target_yaw = choose_dir(); 
-                    timer_stage2 = std::chrono::system_clock::now(); 
                 }
                 else {
                     // Keep exploring in current direction 
                     set_vel(any_bumper_pressed, minLaserDist, &linear, &angular); 
                 }
+                target_yaw = yaw; // refresh for numerical accuracy 
             }
             else {
                 // Rotate to target yaw 
-                if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count() >= 5) {
-                    target_yaw = yaw; 
-                }
-                set_dir(target_yaw, yaw, &angular); 
+                set_dir(target_yaw, yaw, &angular);
                 linear = 0.; 
             }
             update_pos_history(); 
