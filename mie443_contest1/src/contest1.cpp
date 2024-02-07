@@ -148,7 +148,7 @@ float choose_dir(){
         }
     }
     else {
-        return DEG2RAD((float)(std::rand() % 360)); 
+        return DEG2RAD((float)(std::rand() % 360)) - M_PI; 
     }
 }
 
