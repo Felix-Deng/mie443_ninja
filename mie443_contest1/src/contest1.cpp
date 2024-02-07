@@ -60,31 +60,41 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, RAD2DEG(yaw)); 
 }
 
-void set_vel(bool bumper_pressed, float min_laser_dist, float *lin_vel, float *ang_vel) {
+void set_vel(bool bumper_pressed, float min_laser_dist, bool reverse_turn) {
     if (bumper_pressed || min_laser_dist >= 1e6){
         // Bumpers are pressed or about to hit obstacles 
         desiredAngle = 10; 
-        *ang_vel = M_PI / 6.; 
-        *lin_vel = -0.1; 
+        if (!reverse_turn) {
+            angular = M_PI / 6.;
+        }  
+        else {
+            angular = -M_PI / 6.;
+        }
+        linear = -0.1; 
         target_yaw = yaw; 
     }
     else if (min_laser_dist < 0.7) {
         // About to hit obstacles and turn 
         desiredAngle = 10; 
-        *ang_vel = M_PI / 6.;
-        *lin_vel = 0.0;
+        if (!reverse_turn) {
+            angular = M_PI / 6.;
+        }
+        else {
+            angular = -M_PI / 6.;
+        }
+        linear = 0.0;
         target_yaw = yaw; 
     }
     // else if (min_laser_dist < 1.){
     //     // Getting close to obstacles and decelerate 
-    //     *ang_vel = 0.0; 
-    //     *lin_vel = 0.25; 
+    //     angular = 0.0; 
+    //     linear = 0.25; 
     // }
     else {
         // Nothing in front and move forward at full speed 
         desiredAngle = 20; 
-        *lin_vel = 0.25;
-        *ang_vel = 0.0;
+        linear = 0.25;
+        angular = 0.0;
     }
 }
 
@@ -142,16 +152,11 @@ float choose_dir(){
     }
 }
 
-void set_dir(float target_yaw, float curr_yaw, float *ang_vel){
-    target_yaw = RAD2DEG(target_yaw) + 180.; 
-    curr_yaw = RAD2DEG(curr_yaw) + 180.; 
-    float diff_yaw = target_yaw - curr_yaw; 
-    if (abs(diff_yaw) <= 20.) {
-        *ang_vel = M_PI / 12. * (float)((diff_yaw > 0) - (diff_yaw < 0)); 
-    }
-    else {
-        *ang_vel = M_PI / 6. * (float)((diff_yaw > 0) - (diff_yaw < 0)); 
-    }
+void set_dir(){
+    float t_yaw = RAD2DEG(target_yaw) + 180.; 
+    float c_yaw = RAD2DEG(yaw) + 180.; 
+    float diff_yaw = t_yaw - c_yaw; 
+    angular = M_PI / 6. * (float)((diff_yaw > 0) - (diff_yaw < 0)); 
 }
 
 
@@ -187,9 +192,9 @@ int main(int argc, char **argv)
 
         ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
         
-        if (secondsElapsed <= 240) {
+        if (secondsElapsed <= 300) {
             // Stage 1: exterior wall following 
-            set_vel(any_bumper_pressed, minLaserDist, &linear, &angular); 
+            set_vel(any_bumper_pressed, minLaserDist, false); 
             // Update history tracking 
             update_pos_history(); 
             // Refresh target_yaw for stage 2 
@@ -207,13 +212,13 @@ int main(int argc, char **argv)
                 }
                 else {
                     // Keep exploring in current direction 
-                    set_vel(any_bumper_pressed, minLaserDist, &linear, &angular); 
+                    set_vel(any_bumper_pressed, minLaserDist, true); 
+                    target_yaw = yaw; // refresh for numerical accuracy 
                 }
-                target_yaw = yaw; // refresh for numerical accuracy 
             }
             else {
                 // Rotate to target yaw 
-                set_dir(target_yaw, yaw, &angular);
+                set_dir();
                 linear = 0.; 
             }
             update_pos_history(); 
