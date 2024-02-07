@@ -25,7 +25,7 @@ float minLaserDist = std::numeric_limits<float>::infinity();
 float maxLaserDist =0.0;
 float maxDistAngle = 0.0;
 float setYaw = 0.0, turnAngle;
-int32_t nLasers=0, desiredNLasers=0, desiredAngle = 10;
+int32_t nLasers=0, desiredNLasers=0, desiredAngle = 15;
 int32_t maxLaserID;
 
 bool turn;
@@ -40,7 +40,7 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
 	minLaserDist = std::numeric_limits<float>::infinity(); 
     nLasers = (msg->angle_max - msg->angle_min) / msg->angle_increment;
     desiredNLasers = desiredAngle * M_PI / (180 * msg->angle_increment);
-    ROS_INFO("Size of laser scan array: %i and size of offset: %i", nLasers, desiredNLasers);
+    //ROS_INFO("Size of laser scan array: %i and size of offset: %i", nLasers, desiredNLasers);
 
     //finding the minimum laser distance
     if(desiredAngle * M_PI/180 < msg->angle_max && -desiredAngle * M_PI/180 > msg->angle_min){
@@ -72,7 +72,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     posX = msg->pose.pose.position.x; 
     posY = msg->pose.pose.position.y; 
     yaw = tf::getYaw(msg->pose.pose.orientation); 
-    ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, RAD2DEG(yaw)); 
+    //ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, RAD2DEG(yaw)); 
 }
 
 int main(int argc, char **argv)
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
         }
 
         // Control logic after bumpers are being pressed 
-        ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
+        //ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
         
         /*
         // object detected (<0.5), stop and turn (ideally turn to the direction with the minLaserDist, add a delay[s])
@@ -158,72 +158,156 @@ int main(int argc, char **argv)
             linear = 0.0;
         }
         */
+        if (any_bumper_pressed || minLaserDist == INFINITY)
+       {
+            // linear = 0;
+            // angular = M_PI / 3;
+            // vel.angular.z = angular;
+            // vel.linear.x = linear;
+            // vel_pub.publish(vel);
+
+            //ros::Durantion::sleep();
+            ROS_INFO("Bumper hit, turning around");
+            // linear = -0.05;
+            // angular = M_PI / 6;
+            // vel.angular.z = angular;
+            // vel.linear.x = linear;
+            // vel_pub.publish(vel);
+            // ros::Duration::sleep(2000);
+            setYaw = yaw;
+            turnAngle = M_PI / 6;
+            turn = true;
+            ROS_INFO("SetYaw:%f, Yaw:%f, TurnAngle:%f", setYaw, yaw, turnAngle);
+            while (turn)
+            {   
+                ros::spinOnce();
+                linear = 0;
+                angular = M_PI / 3;
+                vel.angular.z = angular;
+                vel.linear.x = linear;
+                vel_pub.publish(vel);
+                if (abs(setYaw - yaw) >= turnAngle)
+                {
+                    ROS_INFO("Completed turning");
+                    linear = 0;
+                    angular = 0;
+                    vel.angular.z = angular;
+                    vel.linear.x = linear;
+                    vel_pub.publish(vel);
+                    turn = false;
+                }
+                else
+                {
+                    turn = true;
+                }
+            }
+       }
 
 //if minimum distance less than x, move forward
-       if (minLaserDist > 0.5) 
+       if (minLaserDist > 0.6 && !any_bumper_pressed && minLaserDist != INFINITY) 
        {
-            linear = 0.3;
+            linear = 0.2;
             angular = 0;
-            ROS_INFO("Foward");
+            //ROS_INFO("Foward");
+            vel.angular.z = angular;
+            vel.linear.x = linear;
+            vel_pub.publish(vel);
        }
+       
 //if minimum distance less than x and there is a lager distance available, turn
-       else if (minLaserDist <= 0.5 && maxLaserDist > 0.5) 
+       else if (minLaserDist <= 0.6 && maxLaserDist >= 0.6) 
        {
             linear = 0;
             angular = 0;
+            vel.angular.z = angular;
+            vel.linear.x = linear;
+            vel_pub.publish(vel);
             setYaw = yaw;
             turnAngle = maxDistAngle;
             ROS_INFO("Too close, turning, turnAngle:%f", turnAngle);
             turn = true;
             while (turn)
-            {
+            {   
+                ros::spinOnce();
                 if (turnAngle < 0)
                 {
                     linear = 0;
-                    angular = M_PI / 6; //turn left
+                    angular = M_PI / 3; //turn left
+                    vel.angular.z = angular;
+                    vel.linear.x = linear;
+                    vel_pub.publish(vel);
                     ROS_INFO("Turning left");
                 }
-                else
+                else if (turnAngle >=0)
                 {
                     linear = 0;
-                    angular = -(M_PI / 6); //turn right
+                    angular = -M_PI / 3; //turn right
+                    vel.angular.z = angular;
+                    vel.linear.x = linear;
+                    vel_pub.publish(vel);
                     ROS_INFO("Turning right");
                 }
 
                 if (abs(setYaw - yaw) >= abs(turnAngle))
                 {
                     ROS_INFO("Completed turning");
-                    linear = 0;
-                    angular = 0;
+                    // linear = 0;
+                    // angular = 0;
+                    // vel.angular.z = angular;
+                    // vel.linear.x = linear;
+                    // vel_pub.publish(vel);
                     turn = false;
+                }
+                else
+                {
+                    turn = true;
                 }
             }
        }
 //if minimum distance and max distance both less than 0.5, turn 180 deg
-       else if (minLaserDist <= 0.5 && maxLaserDist <= 0.5)
+       else if (minLaserDist <= 0.6 && maxLaserDist <= 0.6)
        {
             ROS_INFO("At the corner, turning around");
             linear = 0;
             angular = 0;
+            vel.angular.z = angular;
+            vel.linear.x = linear;
+            vel_pub.publish(vel);
             setYaw = yaw;
-            turnAngle = MI_PI;
+            turnAngle = M_PI / 2;
             turn = true;
             while (turn)
-            {
-                ROS_INFO("Turning around");
+            {   
+                ros::spinOnce();
+                //ROS_INFO("maxLaserDist:%f, minLaserDist:%f,Turning around", maxLaserDist, minLaserDist);
                 linear = 0;
-                angular = M_PI / 6;
+                angular = M_PI / 3;
+                vel.angular.z = angular;
+                vel.linear.x = linear;
+                vel_pub.publish(vel);
                 if (abs(setYaw - yaw) >= abs(turnAngle))
                 {
                     ROS_INFO("Completed turning");
+                    linear = 0;
+                    angular = 0;
+                    vel.angular.z = angular;
+                    vel.linear.x = linear;
+                    vel_pub.publish(vel);
                     turn = false;
+                }
+                else
+                {
+                    turn = true;
                 }
             }
        }
        else
        {
-        linear = 0;
-        angular = M_PI / 8;
+            linear = 0;
+            angular = M_PI / 4;
+            vel.angular.z = angular;
+            vel.linear.x = linear;
+            vel_pub.publish(vel);
        }
        
 
