@@ -63,7 +63,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
 void set_vel(bool bumper_pressed, float min_laser_dist, bool reverse_turn) {
     if (bumper_pressed || min_laser_dist >= 1e6){
         // Bumpers are pressed or about to hit obstacles 
-        desiredAngle = 10; 
+        desiredAngle = 20; 
         if (!reverse_turn) {
             angular = M_PI / 6.;
         }  
@@ -75,7 +75,7 @@ void set_vel(bool bumper_pressed, float min_laser_dist, bool reverse_turn) {
     }
     else if (min_laser_dist < 0.7) {
         // About to hit obstacles and turn 
-        desiredAngle = 10; 
+        desiredAngle = 20; 
         if (!reverse_turn) {
             angular = M_PI / 6.;
         }
@@ -92,7 +92,7 @@ void set_vel(bool bumper_pressed, float min_laser_dist, bool reverse_turn) {
     // }
     else {
         // Nothing in front and move forward at full speed 
-        desiredAngle = 20; 
+        desiredAngle = 10; 
         linear = 0.25;
         angular = 0.0;
     }
@@ -114,11 +114,14 @@ void update_pos_history(){
 }
 
 float choose_dir(){
-    float closed_dist = 0.7; 
+    float closed_dist = 0.5; 
     bool closed_to_up = max_y - posY <= closed_dist || posY > max_y; 
     bool closed_to_bottom = posY - min_y <= closed_dist || posY < min_y; 
     bool closed_to_left = posX - min_x <= closed_dist || posX < min_x; 
     bool closed_to_right = max_x - posX <= closed_dist || posX > max_x; 
+    if (std::rand() % 15 < 1){
+        return DEG2RAD((float)(std::rand() % 360)) - M_PI;
+    }
     if (closed_to_up){
         if (closed_to_left){
             return -3. / 4. * M_PI; 
@@ -203,7 +206,7 @@ int main(int argc, char **argv)
         else {
             // Stage 2: random walk within the pre-explored boundary 
             if (abs(yaw - target_yaw) <= 0.2) {
-                int prob = std::rand() % 10; // random probability between 0 and 9 
+                int prob = std::rand() % 20; // random probability between 0 and 19 
                 if (prob <= 1) {
                     // Change direction of exploration 
                     angular = 0.; 
