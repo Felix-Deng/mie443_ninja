@@ -137,8 +137,8 @@ float choose_dir(){
 }
 
 void set_dir(float target_yaw, float curr_yaw, float *ang_vel){
-    target_yaw = (RAD2DEG(target_yaw) + 180.) % 360.; 
-    curr_yaw = (RAD2DEG(curr_yaw) + 180.) % 360.; 
+    target_yaw = RAD2DEG(target_yaw) + 180.; 
+    curr_yaw = RAD2DEG(curr_yaw) + 180.; 
     float diff_yaw = target_yaw - curr_yaw; 
     if (abs(diff_yaw) <= 20.) {
         *ang_vel = M_PI / 12. * (float)((diff_yaw > 0) - (diff_yaw < 0)); 
@@ -209,7 +209,7 @@ int main(int argc, char **argv)
             }
             else {
                 // Rotate to target yaw 
-                set_dir(); 
+                set_dir(target_yaw, yaw, &angular); 
             }
             update_pos_history(); 
         }
