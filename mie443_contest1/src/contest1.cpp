@@ -8,6 +8,8 @@
 
 #include <stdio.h>
 #include <cmath>
+#include <algorithm>
+#include <random>
 
 #include <chrono>
 
@@ -18,7 +20,8 @@
 float angular = 0.0;
 float linear = 0.0;
 
-float posX = 0.0, posY = 0.0, yaw = 0.0; 
+float posX = 0.0, posY = 0.0, yaw = 0.0; // actual location recording 
+float max_x = 0.0, min_x = 0.0, max_y = 0.0, min_y = 0.0; // search history tracking 
 
 uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED}; 
 float minLaserDist = std::numeric_limits<float>::infinity();
@@ -56,6 +59,96 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, RAD2DEG(yaw)); 
 }
 
+void set_vel(bool bumper_pressed, float min_laser_dist, float *lin_vel, float *ang_vel) {
+    if (bumper_pressed || min_laser_dist >= 1e6){
+        // Bumpers are pressed or about to hit obstacles 
+        *ang_vel = 0.0; 
+        *lin_vel = -0.2; 
+    }
+    else if (min_laser_dist < 0.5) {
+        // About to hit obstacles and turn 
+        *ang_vel = M_PI / 6;
+        *lin_vel = 0.0;
+    }
+    else if (min_laser_dist < 0.7){
+        // Getting close to obstacles and decelerate 
+        *ang_vel = 0.0; 
+        *lin_vel = 0.1; 
+    }
+    else {
+        // Nothing in front and move forward at full speed 
+        *lin_vel = 0.25;
+        *ang_vel = 0.0;
+    }
+}
+
+void update_pos_history(){
+    if (posX > max_x) {
+        max_x = posX; 
+    }
+    else if (posX < min_x) {
+        min_x = posX; 
+    }
+    if (posY > max_y) {
+        max_y = posY; 
+    }
+    else if (posY < min_y) {
+        min_y = posY; 
+    }
+}
+
+float choose_dir(){
+    float closed_dist = 0.7; 
+    bool closed_to_up = max_y - posY <= closed_dist; 
+    bool closed_to_bottom = posY - min_y <= closed_dist; 
+    bool closed_to_left = posX - min_x <= closed_dist; 
+    bool closed_to_right = max_x - posX <= closed_dist; 
+    if (closed_to_up){
+        if (closed_to_left){
+            return -3. / 4. * M_PI; 
+        }
+        else if (closed_to_right){
+            return 3. / 4. * M_PI; 
+        }
+        else{
+            float yaw_change = (float)(std::rand() % 90); 
+            if (yaw_change < 45) {
+                return 3. / 4. * M_PI + DEG2RAD(yaw_change); 
+            }
+            else {
+                return -5. / 4. * M_PI + DEG2RAD(yaw_change); 
+            }
+        }
+    }
+    else if (closed_to_bottom) {
+        if (closed_to_left){
+            return -M_PI / 4.; 
+        }
+        else if (closed_to_right){
+            return M_PI / 4.; 
+        }
+        else{
+            return M_PI / 4. - DEG2RAD((float)(std::rand() % 90)); 
+        }
+    }
+    else {
+        return DEG2RAD((float)(std::rand() % 360)); 
+    }
+}
+
+void set_dir(float target_yaw, float curr_yaw, float *ang_vel){
+    target_yaw = (RAD2DEG(target_yaw) + 180.) % 360.; 
+    curr_yaw = (RAD2DEG(curr_yaw) + 180.) % 360.; 
+    float diff_yaw = target_yaw - curr_yaw; 
+    if (abs(diff_yaw) <= 20.) {
+        *ang_vel = M_PI / 12. * (float)((diff_yaw > 0) - (diff_yaw < 0)); 
+    }
+    else {
+        *ang_vel = M_PI / 6. * (float)((diff_yaw > 0) - (diff_yaw < 0)); 
+    }
+}
+
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "maze_explorer");
@@ -77,7 +170,9 @@ int main(int argc, char **argv)
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
 
-    /*
+    // Target position 
+    float target_yaw; 
+
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
         
@@ -87,86 +182,36 @@ int main(int argc, char **argv)
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED); 
         }
 
-        // Control logic after bumpers are being pressed 
         ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
-        if(posX < 0.5 && yaw < M_PI / 12 && !any_bumper_pressed && minLaserDist > 0.7){
-            angular = 0.0; 
-            linear = 0.2; 
+        
+        if (secondsElapsed <= 240) {
+            // Stage 1: exterior wall following 
+            set_vel(any_bumper_pressed, minLaserDist, &linear, &angular); 
+            // Update history tracking 
+            update_pos_history(); 
+            // Refresh target_yaw for stage 2 
+            target_yaw = yaw; 
         }
-        else if (yaw < M_PI / 2 && posX > 0.5 && !any_bumper_pressed && minLaserDist > 0.5){
-            angular = M_PI / 6; 
-            linear = 0.0; 
-        }
-        else if (minLaserDist > 1. && !any_bumper_pressed){
-            linear = 0.1; 
-            if(yaw < 17/36 * M_PI || posX > 0.6){
-                angular = M_PI / 12.; 
-            }
-            else if (yaw < 19/36 * M_PI || posX < 0.4){
-                angular = -M_PI/12.;
+        else {
+            // Stage 2: random walk within the pre-explored boundary 
+            if (abs(yaw - target_yaw) <= 0.1) {
+                target_yaw = yaw; // refresh for numerical accuracy 
+                int prob = std::rand() % 10; // random probability between 0 and 9 
+                if (prob <= 2) {
+                    // Change direction of exploration 
+                    angular = 0.; 
+                    target_yaw = choose_dir(); 
+                }
+                else {
+                    // Keep exploring in current direction 
+                    set_vel(any_bumper_pressed, minLaserDist, &linear, &angular); 
+                }
             }
             else {
-                angular = 0;
+                // Rotate to target yaw 
+                set_dir(); 
             }
-        }
-        else {
-            angular = 0.0; 
-            linear = 0.0; 
-        }
-    */
-
-    //MAYBE
-    //float angular = 0.0;
-    //float linear = 0.0;
-
-    while(ros::ok() && secondsElapsed <= 480) {
-        ros::spinOnce();
-        
-        // Check if any of the bumpers were pressed 
-        bool any_bumper_pressed = false; 
-        for (uint32_t b_idx=0; b_idx < N_BUMPER; ++b_idx){
-            any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED); 
-        }
-
-        // Control logic after bumpers are being pressed 
-        ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
-        
-
-        // object detected (<0.5), stop and turn (ideally turn to the direction with the minLaserDist, add a delay[s])
-        if (any_bumper_pressed){
-            ROS_INFO("Bumper is pressed, move back linearly");
-            angular = 0.0; 
-            linear = -0.2; 
-        }
-        else if (minLaserDist < 0.5) {
-            angular = M_PI / 6;
-            linear = 0.0;
-        }
-        
-        /*
-        // nothing in front (<0.7), slow down
-        else if(!any_bumper_pressed && minLaserDist < 0.7){
-            ROS_INFO("Object Detected! Slowing down...");
-            angular = 0.0; 
-            linear = 0.1; 
-        }
-        */
-
-        // nothing in front (>=0.7), forward 0.25 with self correction in yaw angle
-        else if (minLaserDist >= 0.5 && minLaserDist <= 1. && !any_bumper_pressed){
-            ROS_INFO("Turn around until there is large space");
-            linear = 0.0;
-            angular = M_PI / 6;
-        }
-        else if (minLaserDist > 1. && !any_bumper_pressed){
-            ROS_INFO("Move forward");
-            linear = 0.25;
-            angular = 0.0;
-        }
-
-        else {
-            angular = 0.0; 
-            linear = 0.0; 
+            update_pos_history(); 
         }
 
         vel.angular.z = angular;
