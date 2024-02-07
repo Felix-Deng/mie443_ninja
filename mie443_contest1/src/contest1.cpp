@@ -8,28 +8,21 @@
 
 #include <stdio.h>
 #include <cmath>
-#include <vector>
-#include <map>
-#include <string>
-#include <algorithm>
 
 #include <chrono>
 
 #define N_BUMPER (3)
 #define RAD2DEG(rad) ((rad) * 180. / M_PI)
 #define DEG2RAD(deg) ((deg) * M_PI / 180.)
-#define POS_TOL (0.01) // Tolerance for positional accuracy 
-#define YAW_TOL (0.01) // Tolerance for yaw angle accuracy (in rad)
 
 float angular = 0.0;
 float linear = 0.0;
 
 float posX = 0.0, posY = 0.0, yaw = 0.0; 
-float targetX = 0.0, targetY = 0.0, targetYaw = 0.0; 
 
 uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED}; 
 float minLaserDist = std::numeric_limits<float>::infinity();
-int32_t nLasers=0, desiredNLasers=0, desiredAngle = 5;
+int32_t nLasers=0, desiredNLasers=0, desiredAngle = 20;
 
 void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr& msg)
 {
@@ -63,8 +56,6 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, RAD2DEG(yaw)); 
 }
 
-
-/*************************** Main Program ***************************/ 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "maze_explorer");
@@ -86,20 +77,7 @@ int main(int argc, char **argv)
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
 
-    // Start world mapping with the source node initiated
-    nodes.push_back(Node()); 
-    Node *source_node = &nodes[-1]; 
-    source_node->pos_x = posX; 
-    source_node->pos_y = posY; 
-    source_node->source = 'X'; // signify source node 
-
-    // Keep track of current node 
-    Node *curr_node = source_node; 
-    // Store path to the source Node if going home 
-    std::vector<Node*> path_to_source; 
-    // Keep track of if during exploration
-    char exploring; 
-
+    /*
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
         
@@ -111,66 +89,21 @@ int main(int argc, char **argv)
 
         // Control logic after bumpers are being pressed 
         ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
-
-        if (any_bumper_pressed || minLaserDist <= 0.1) {
-            // TBD: Pending decisions 
-            // TODO: also add laser distance checking to if statement 
+        if(posX < 0.5 && yaw < M_PI / 12 && !any_bumper_pressed && minLaserDist > 0.7){
             angular = 0.0; 
-            linear = -1.0; 
+            linear = 0.2; 
         }
-        else {
-            if (targetX != posX || targetY != posY || targetYaw != yaw) {
-                // Not currently at target position, set to move to target 
-                if (targetX == posX && targetY == posY) {
-                    // At correct position, but wrong yaw
-                    linear = 0.0; 
-                    angular = set_angular(targetYaw, yaw); 
-                    if (!angular) {
-                        targetYaw = yaw; 
-                    }
-                }
-                else {
-                    // At wrong position, yaw doesn't matter yet 
-                    float diffX = targetX - posX, diffY = targetY - posY; 
-                    float temp_target_yaw; 
-                    if (diffX) {
-                        if (diffX > 0) {
-                            temp_target_yaw = 0.0; // go east 
-                        }
-                        else {
-                            temp_target_yaw = M_PI; // go west 
-                        }
-                    }
-                    else {
-                        if (diffY > 0) {
-                            temp_target_yaw = M_PI / 2.; // go north 
-                        }
-                        else {
-                            temp_target_yaw = 3. / 2. * M_PI; // go south 
-                        }
-                    }
-                    if (abs(temp_target_yaw - yaw) <= YAW_TOL) {
-                        // Correct direction, go straight 
-                        angular = 0.0; 
-                        if (diffX) {
-                            linear = set_linear(targetX, posX); 
-                            if (!linear) {
-                                targetX = posX; 
-                            }
-                        }
-                        else {
-                            linear = set_linear(targetY, posY); 
-                            if (!linear) {
-                                targetY = posY; 
-                            }
-                        }
-                    }
-                    else {
-                        // Wrong direction, first turn 
-                        linear = 0.0; 
-                        angular = set_angular(temp_target_yaw, yaw); 
-                    }
-                }
+        else if (yaw < M_PI / 2 && posX > 0.5 && !any_bumper_pressed && minLaserDist > 0.5){
+            angular = M_PI / 6; 
+            linear = 0.0; 
+        }
+        else if (minLaserDist > 1. && !any_bumper_pressed){
+            linear = 0.1; 
+            if(yaw < 17/36 * M_PI || posX > 0.6){
+                angular = M_PI / 12.; 
+            }
+            else if (yaw < 19/36 * M_PI || posX < 0.4){
+                angular = -M_PI/12.;
             }
             else {
                 angular = 0;
@@ -200,54 +133,42 @@ int main(int argc, char **argv)
         
 
         // object detected (<0.5), stop and turn (ideally turn to the direction with the minLaserDist, add a delay[s])
-        if (!any_bumper_pressed && minLaserDist < 0.7){
-            ROS_INFO("Object Detected! Stop and turn!")
-            angular = M_PI / 6; 
-            linear = 0.0; 
+        if (any_bumper_pressed){
+            ROS_INFO("Bumper is pressed, move back linearly");
+            angular = 0.0; 
+            linear = -0.2; 
+        }
+        else if (minLaserDist < 0.5) {
+            angular = M_PI / 6;
+            linear = 0.0;
         }
         
         /*
         // nothing in front (<0.7), slow down
         else if(!any_bumper_pressed && minLaserDist < 0.7){
-            ROS_INFO("Object Detected! Slowing down...")
+            ROS_INFO("Object Detected! Slowing down...");
             angular = 0.0; 
             linear = 0.1; 
         }
         */
 
         // nothing in front (>=0.7), forward 0.25 with self correction in yaw angle
-        else if (minLaserDist >= 0.7 && !any_bumper_pressed){
-            ROS_INFO("Cruising")
-            linear = 0.25;
-            angular = 0;
+        else if (minLaserDist >= 0.5 && minLaserDist <= 1. && !any_bumper_pressed){
+            ROS_INFO("Turn around until there is large space");
+            linear = 0.0;
+            angular = M_PI / 6;
         }
-        
+        else if (minLaserDist > 1. && !any_bumper_pressed){
+            ROS_INFO("Move forward");
+            linear = 0.25;
+            angular = 0.0;
+        }
+
         else {
             angular = 0.0; 
             linear = 0.0; 
         }
 
-        // if(posX < 0.5 && yaw < M_PI / 12 && minLaserDist > 0.7){
-        //     angular = 0.0; 
-        //     linear = 0.2; 
-        // }
-        // else if (yaw < M_PI / 2 && posX > 0.5 && !any_bumper_pressed && minLaserDist > 0.5){
-        //     angular = M_PI / 6; 
-        //     linear = 0.0; 
-        // }
-        // else if (minLaserDist > 1. && !any_bumper_pressed){
-        //     linear = 0.1; 
-        //     if(yaw < 17/36 * M_PI || posX > 0.6){
-        //         angular = M_PI / 12.; 
-        //     }
-        //     else if (yaw < 19/36 * M_PI || posX < 0.4){
-        //         angular = -M_PI/12.;
-        //     }
-        //     else {
-        //         angular = 0;
-        //     }
-        // }
-    
         vel.angular.z = angular;
         vel.linear.x = linear;
         vel_pub.publish(vel);
@@ -259,4 +180,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
