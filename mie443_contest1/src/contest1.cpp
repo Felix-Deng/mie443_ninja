@@ -156,10 +156,13 @@ float choose_dir(){
 }
 
 void set_dir(){
-    float t_yaw = RAD2DEG(target_yaw) + 180.; 
-    float c_yaw = RAD2DEG(yaw) + 180.; 
-    float diff_yaw = t_yaw - c_yaw; 
-    angular = M_PI / 6. * (float)((diff_yaw > 0) - (diff_yaw < 0)); 
+    float diff_yaw = RAD2DEG(target_yaw - yaw); 
+    if (abs(diff_yaw) >= 180) {
+        angular = M_PI / 6. * (float)((diff_yaw < 0) - (diff_yaw > 0)); 
+    }
+    else {
+        angular = M_PI / 6. * (float)((diff_yaw > 0) - (diff_yaw < 0)); 
+    }
 }
 
 
@@ -198,8 +201,6 @@ int main(int argc, char **argv)
         if (secondsElapsed <= 300) {
             // Stage 1: exterior wall following 
             set_vel(any_bumper_pressed, minLaserDist, false); 
-            // Update history tracking 
-            update_pos_history(); 
             // Refresh target_yaw for stage 2 
             target_yaw = yaw; 
         }
@@ -224,8 +225,9 @@ int main(int argc, char **argv)
                 set_dir();
                 linear = 0.; 
             }
-            update_pos_history(); 
         }
+        
+        update_pos_history(); // update history tracking 
 
         vel.angular.z = angular;
         vel.linear.x = linear;
