@@ -10,6 +10,7 @@
 #include <cmath>
 #include <algorithm>
 #include <random>
+#include <thread>
 
 #include <chrono>
 
@@ -20,6 +21,7 @@
 float angular = 0.0;
 float linear = 0.0; 
 float target_yaw;  // target position
+bool delay_bumper = false; 
 
 float posX = 0.0, posY = 0.0, yaw = 0.0; // actual location recording 
 float max_x = 0.0, min_x = 0.0, max_y = 0.0, min_y = 0.0; // search history tracking 
@@ -72,6 +74,9 @@ void set_vel(bool bumper_pressed, float min_laser_dist, bool reverse_turn) {
         }
         linear = -0.1; 
         target_yaw = yaw; 
+        if (bumper_pressed) {
+            delay_bumper = true; 
+        }
     }
     else if (min_laser_dist < 0.7) {
         // About to hit obstacles and turn 
@@ -189,6 +194,11 @@ int main(int argc, char **argv)
 
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
+
+        if (delay_bumper) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            delay_bumper = false; 
+        }
         
         // Check if any of the bumpers were pressed 
         bool any_bumper_pressed = false; 
@@ -198,7 +208,7 @@ int main(int argc, char **argv)
 
         ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
         
-        if (secondsElapsed <= 300) {
+        if (secondsElapsed <= 240) {
             // Stage 1: exterior wall following 
             set_vel(any_bumper_pressed, minLaserDist, false); 
             // Refresh target_yaw for stage 2 
