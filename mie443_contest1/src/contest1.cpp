@@ -208,7 +208,7 @@ int main(int argc, char **argv)
 
         ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
         
-        if (secondsElapsed <= 240) {
+        if (secondsElapsed <= 60) {
             // Stage 1: exterior wall following 
             set_vel(any_bumper_pressed, minLaserDist, false); 
             // Refresh target_yaw for stage 2 
@@ -225,9 +225,23 @@ int main(int argc, char **argv)
                     target_yaw = choose_dir(); 
                 }
                 else {
-                    // Keep exploring in current direction 
-                    set_vel(any_bumper_pressed, minLaserDist, true); 
-                    target_yaw = yaw; // refresh for numerical accuracy 
+                    ROS_INFO("RANDOM WALK, NEW DIRECTION 10s");
+                    // Keep exploring in current direction for 10s
+                    ros::Time random_start_time = ros::Time::now();
+                    ros::Duration random_time;
+
+                    while (ros::ok() & random_time.toSec() < 10){
+                        set_vel(any_bumper_pressed, minLaserDist, true);
+                        
+                        random_time = ros::Time::now() - random_start_time;
+
+                        update_pos_history(); // update history tracking 
+                        vel.angular.z = angular;
+                        vel.linear.x = linear;
+                        vel_pub.publish(vel);
+                 
+                    }
+                    target_yaw = yaw; // refresh for numerical accuracy
                 }
             }
             else {
