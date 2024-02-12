@@ -93,7 +93,7 @@ void set_vel(bool bumper_pressed, float min_laser_dist, bool reverse_turn) {
     // else if (min_laser_dist < 1.){
     //     // Getting close to obstacles and decelerate 
     //     angular = 0.0; 
-    //     linear = 0.25; 
+    //     linear = 0.1; 
     // }
     else {
         // Nothing in front and move forward at full speed 
@@ -197,6 +197,7 @@ int main(int argc, char **argv)
 
         if (delay_bumper) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            target_yaw = yaw; 
             delay_bumper = false; 
         }
         
@@ -217,8 +218,8 @@ int main(int argc, char **argv)
         else {
             // Stage 2: random walk within the pre-explored boundary 
             if (abs(yaw - target_yaw) <= 0.2) {
-                int prob = std::rand() % 20; // random probability between 0 and 19 
-                if (prob <= 1) {
+                int prob = std::rand() % 30; // random probability between 0 and 19 
+                if (prob < 1) {
                     // Change direction of exploration 
                     angular = 0.; 
                     linear = 0.; 
