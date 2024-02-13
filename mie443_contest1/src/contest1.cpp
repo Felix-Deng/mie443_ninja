@@ -209,10 +209,14 @@ int main(int argc, char **argv)
 
         ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
         
-        if (secondsElapsed <= 240) {
+        if (secondsElapsed <= 120) {
             // Stage 1: exterior wall following 
             set_vel(any_bumper_pressed, minLaserDist, false); 
             // Refresh target_yaw for stage 2 
+            target_yaw = yaw; 
+        }
+        else if (secondsElapsed <= 300){ 
+            set_vel(any_bumper_pressed, minLaserDist, true); 
             target_yaw = yaw; 
         }
         else {
@@ -227,7 +231,7 @@ int main(int argc, char **argv)
                 }
                 else {
                     // Keep exploring in current direction 
-                    set_vel(any_bumper_pressed, minLaserDist, true); 
+                    set_vel(any_bumper_pressed, minLaserDist, false); 
                     target_yaw = yaw; // refresh for numerical accuracy 
                 }
             }
