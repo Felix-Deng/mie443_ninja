@@ -4,7 +4,7 @@
 #include <imagePipeline.h>
 #include <chrono>
 
-# include <cmath>
+#include <cmath>
 
 
 void get_target(float box_x, float box_y, float box_phi, float *target_x, float *target_y, float *target_phi) {
@@ -68,7 +68,8 @@ int main(int argc, char** argv) {
         current_box += 1; 
 
         // Image recognition @ Olivia 
-        imagePipeline.getTemplateID(boxes);
+        int result = imagePipeline.getTemplateID(boxes); //returns the most matched template ID
+        std::cout << "Picture ID:" << result << std::endl;
         ros::Duration(0.01).sleep();
     }
     return 0;

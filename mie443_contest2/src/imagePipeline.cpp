@@ -2,12 +2,15 @@
 //added library and values
 #include <iostream>
 #include "opencv2/core.hpp"
-#ifdef HAVE_OPENCV_XFEATURES2D
+//#ifdef HAVE_OPENCV_XFEATURES2D
 #include "opencv2/calib3d.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/features2d.hpp"
 #include "opencv2/xfeatures2d.hpp"
+#include <algorithm>
+#include <cmath>
+#include <vector>
 
 using namespace cv;
 using namespace cv::xfeatures2d;
@@ -21,7 +24,10 @@ const char* keys =
 //added library and values
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
-#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
+//#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
+#define IMAGE_TOPIC "camera/image"
+
+
 
 ImagePipeline::ImagePipeline(ros::NodeHandle& n) {
    image_transport::ImageTransport it(n);
@@ -56,7 +62,7 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
    {
        /***YOUR CODE HERE***/
        // Use: boxes.templates
-       int Matches[3]; //initialize array to store good matches for three templates
+       std::vector<int> Matches{0, 0, 0}; //initialize array to store good matches for three templates
        Mat img_scene = img; //this is the scanned image, call this once only
        for(int j = 0; j<3; j++)
        {
@@ -84,6 +90,7 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
                    good_matches.push_back(knn_matches[i][0]);
                }
            }
+           
            //end of copy paste
            Matches[j] = good_matches.size(); //store good matches number into array
        }
