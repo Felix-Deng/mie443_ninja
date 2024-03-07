@@ -2,16 +2,81 @@
 #include <navigation.h>
 #include <robot_pose.h>
 #include <imagePipeline.h>
+#include <nav_msgs/GetPlan.h>
 #include <chrono>
 
 #include <cmath>
 
 
-void get_target(float box_x, float box_y, float box_phi, float *target_x, float *target_y, float *target_phi) {
+float angle_rotation_adj(float posx1, float posy1, float posx2, float posy2, float offset){
+    return acos(1 - (pow(posx1 - posx2, 2) + pow(posy1 - posy2, 2)) / (2 * pow(offset, 2)))
+}
+
+void get_target(float box_x, float box_y, float box_phi, float *target_x, float *target_y, float *target_phi, ros::NodeHandle n) {
     float offset = 0.2; 
     *target_x = box_x + offset * std::cos(box_phi); 
     *target_y = box_y + offset * std::sin(box_phi); 
     *target_phi = box_phi - M_PI * ((box_phi >= 0.0) - (box_phi < 0.0)); 
+
+    // Check if the target path is feasible 
+    ros::ServiceClient check_path = n.serviceClient<nav_msgs::GetPlan>("/move_base/NavfnROS/make_plan");
+    nav_msgs::GetPlan srv;
+    srv.request.start = start;
+    srv.request.goal = goal;
+    check_path.call(srv);
+    
+    if (srv.response.plan.poses.size() == 0){
+        // Path unavailable; a new path is needed 
+        float min_x = -1.27, min_y = -1.20, max_x = 1.27, max_y = 1.20; 
+        float temp_x = *target_x, temp_y = *target_y; 
+        if (target_x > max_x){
+            *target_x = max_x; 
+            if (box_phi >= 0.0) {
+                *target_y = box_y + pow(pow(offset, 2) - pow(max_x - box_x, 2), 0.5); 
+                *target_phi = *target_phi + angle_rotation_adj(*target_x, *target_y, temp_x, temp_y, offset); 
+            }
+            else {
+                *target_y = box_y - pow(pow(offset, 2) - pow(max_x - box_x, 2), 0.5); 
+                *target_phi = *target_phi - angle_rotation_adj(*target_x, *target_y, temp_x, temp_y, offset); 
+            }
+        }
+        else if (target_x < min_x) { 
+            *target_x = min_x; 
+            if (box_phi >= 0.0) {
+                *target_y = box_y - pow(pow(offset, 2) - pow(box_x - min_x, 2), 0.5); 
+                *target_phi = *target_phi - angle_rotation_adj(*target_x, *target_y, temp_x, temp_y, offset); 
+            }
+            else {
+                *target_y = box_y + pow(pow(offset, 2) - pow(box_x - min_x, 2), 0.5); 
+                *target_phi = *target_phi + angle_rotation_adj(*target_x, *target_y, temp_x, temp_y, offset); 
+            }
+        }
+        else if (target_y < min_y) { 
+            *target_y = min_y; 
+            if (box_phi >= -M_PI / 2.0) {
+                *target_x = box_x + pow(pow(offset, 2) - pow(min_y - box_y, 2), 0.5); 
+                *target_phi = *target_phi + angle_rotation_adj(*target_x, *target_y, temp_x, temp_y, offset); 
+            }
+            else {
+                *target_x = box_x - pow(pow(offset, 2) - pow(min_y - box_y, 2), 0.5); 
+                *target_phi = *target_phi - angle_rotation_adj(*target_x, *target_y, temp_x, temp_y, offset); 
+            }
+        }
+        else if (target_y > max_y) {
+            *target_y = max_y; 
+            if (box_phi <= M_PI / 2.0) {
+                *target_x = box_x + pow(pow(offset, 2) - pow(max_y - box_y, 2), 0.5); 
+                *target_phi = *target_phi - angle_rotation_adj(*target_x, *target_y, temp_x, temp_y, offset); 
+            }
+            else {
+                *target_x = box_x - pow(pow(offset, 2) - pow(max_y - box_y, 2), 0.5); 
+                *target_phi = *target_phi + angle_rotation_adj(*target_x, *target_y, temp_x, temp_y, offset); 
+            }
+        }
+        else {
+            // Stepping into another box 
+        }
+    }
 }
 
 int main(int argc, char** argv) {
