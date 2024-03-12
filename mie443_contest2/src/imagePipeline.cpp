@@ -25,7 +25,8 @@ const char* keys =
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
 //#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
-#define IMAGE_TOPIC "camera/image"
+#define IMAGE_TOPIC "camera/rgb/image_raw"
+// rostopic hz camera/rgb/image_raw
 
 
 
@@ -53,6 +54,7 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
    int template_id = -1;
    if(!isValid) {
        std::cout << "ERROR: INVALID IMAGE!" << std::endl;
+    
    } else if(img.empty() || img.rows <= 0 || img.cols <= 0) {
        std::cout << "ERROR: VALID IMAGE, BUT STILL A PROBLEM EXISTS!" << std::endl;
        std::cout << "img.empty():" << img.empty() << std::endl;
@@ -93,12 +95,14 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
            
            //end of copy paste
            Matches[j] = good_matches.size(); //store good matches number into array
+           std::cout << "Template ID:" << j+1 << std::endl;
+           std::cout << "Good matches:" << Matches[j] << std::endl;
        }
        std::vector<int>::iterator max_num;
        max_num = std::max_element(Matches.begin(), Matches.end());
        template_id = std::distance(Matches.begin(), max_num);
        cv::imshow("view", img);
        cv::waitKey(10);
-   }  
+   }
    return template_id;
 }

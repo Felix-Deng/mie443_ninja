@@ -119,6 +119,7 @@ int main(int argc, char** argv) {
         // Use: boxes.coords
         // Use: robotPose.x, robotPose.y, robotPose.phi
         
+        /*
         if (current_box == boxes.coords.size()) {
             break; // task completed 
         }
@@ -136,6 +137,7 @@ int main(int argc, char** argv) {
         Navigation::moveToGoal(target_x, target_y, target_phi); 
         std::cout << "Arrived at box " << current_box << std::endl; 
         current_box += 1; 
+        */
 
         // Image recognition @ Olivia 
         int result = imagePipeline.getTemplateID(boxes); //returns the most matched template ID
