@@ -141,6 +141,7 @@ int main(int argc, char** argv) {
 
         // Image recognition @ Olivia 
         int result = imagePipeline.getTemplateID(boxes); //returns the most matched template ID
+        //0->invalid, 1->template1, 2->template2, 3->template3, 4->blank page
         std::cout << "Picture ID:" << result << std::endl;
         ros::Duration(0.01).sleep();
     }
