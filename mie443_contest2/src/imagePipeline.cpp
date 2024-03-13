@@ -103,7 +103,7 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
             }
        }
 
-       if(Matches[0]<300 && Matches[1]<300 && Matches[2]<300) {
+       if(Matches[0]<250 && Matches[1]<250 && Matches[2]<250) {
         template_id = 3;
        }
        else {
