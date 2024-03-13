@@ -25,7 +25,8 @@ const char* keys =
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
 //#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
-#define IMAGE_TOPIC "camera/image"
+#define IMAGE_TOPIC "camera/rgb/image_raw"
+// rostopic hz camera/rgb/image_raw
 
 
 
@@ -53,52 +54,68 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
    int template_id = -1;
    if(!isValid) {
        std::cout << "ERROR: INVALID IMAGE!" << std::endl;
+    
    } else if(img.empty() || img.rows <= 0 || img.cols <= 0) {
        std::cout << "ERROR: VALID IMAGE, BUT STILL A PROBLEM EXISTS!" << std::endl;
        std::cout << "img.empty():" << img.empty() << std::endl;
        std::cout << "img.rows:" << img.rows << std::endl;
        std::cout << "img.cols:" << img.cols << std::endl;
-   } else 
+   }
+     else 
    {
        /***YOUR CODE HERE***/
        // Use: boxes.templates
        std::vector<int> Matches{0, 0, 0}; //initialize array to store good matches for three templates
        Mat img_scene = img; //this is the scanned image, call this once only
-       for(int j = 0; j<3; j++)
+       for(int count = 0; count<5; count++)
        {
-           Mat img_object = boxes.templates[j]; //reference image, from templates
+            for(int j = 0; j<3; j++)
+            {
+                Mat img_object = boxes.templates[j]; //reference image, from templates
 
-           //-- Step 1: Detect the keypoints using SURF Detector, compute the descriptors
-           int minHessian = 400;
-           Ptr<SURF> detector = SURF::create( minHessian );
-           std::vector<KeyPoint> keypoints_object, keypoints_scene;
-           Mat descriptors_object, descriptors_scene;
-           detector->detectAndCompute( img_object, noArray(), keypoints_object, descriptors_object );
-           detector->detectAndCompute( img_scene, noArray(), keypoints_scene, descriptors_scene );
-           //-- Step 2: Matching descriptor vectors with a FLANN based matcher
-           // Since SURF is a floating-point descriptor NORM_L2 is used
-           Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
-           std::vector< std::vector<DMatch> > knn_matches;
-           matcher->knnMatch( descriptors_object, descriptors_scene, knn_matches, 2 );
-           //-- Filter matches using the Lowe's ratio test
-           const float ratio_thresh = 0.75f;
-           std::vector<DMatch> good_matches;
-           for (size_t i = 0; i < knn_matches.size(); i++)
-           {
-               if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
-               {
-                   good_matches.push_back(knn_matches[i][0]);
-               }
-           }
-           
-           //end of copy paste
-           Matches[j] = good_matches.size(); //store good matches number into array
+                //-- Step 1: Detect the keypoints using SURF Detector, compute the descriptors
+                int minHessian = 400;
+                Ptr<SURF> detector = SURF::create( minHessian );
+                std::vector<KeyPoint> keypoints_object, keypoints_scene;
+                Mat descriptors_object, descriptors_scene;
+                detector->detectAndCompute( img_object, noArray(), keypoints_object, descriptors_object );
+                detector->detectAndCompute( img_scene, noArray(), keypoints_scene, descriptors_scene );
+                //-- Step 2: Matching descriptor vectors with a FLANN based matcher
+                // Since SURF is a floating-point descriptor NORM_L2 is used
+                Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
+                std::vector< std::vector<DMatch> > knn_matches;
+                matcher->knnMatch( descriptors_object, descriptors_scene, knn_matches, 2 );
+                //-- Filter matches using the Lowe's ratio test
+                const float ratio_thresh = 0.75f;
+                std::vector<DMatch> good_matches;
+                for (size_t i = 0; i < knn_matches.size(); i++)
+                {
+                    if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
+                    {
+                        good_matches.push_back(knn_matches[i][0]);
+                    }
+                }
+                
+                //end of copy paste
+                Matches[j] = Matches[j] + good_matches.size(); //store good matches number into array
+                //std::cout << "Template ID:" << j+1 << std::endl;
+                //std::cout << "Good matches:" << Matches[j] << std::endl;
+            }
        }
+
+       if(Matches[0]<100 && Matches[1]<100 && Matches[2]<100) {
+        template_id = 3;
+       }
+       else {
        std::vector<int>::iterator max_num;
        max_num = std::max_element(Matches.begin(), Matches.end());
        template_id = std::distance(Matches.begin(), max_num);
        cv::imshow("view", img);
+       std::cout << "Template 1:" << Matches[0] << std::endl;
+       std::cout << "Template 2:" << Matches[1] << std::endl;
+       std::cout << "Template 3:" << Matches[2] << std::endl;
        cv::waitKey(10);
-   }  
-   return template_id;
+       }
+   }
+   return (template_id+1); //0->invalid, 1->template1, 2->template2, 3->template3, 4->blank page
 }
