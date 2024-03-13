@@ -225,9 +225,30 @@ int main(int argc, char** argv) {
         current_box += 1; 
         
         // Image recognition 
-        int result = imagePipeline.getTemplateID(boxes); //returns the most matched template ID
-        std::cout << "Picture ID:" << result << std::endl;
+        int temp_ID;
+        int picture_ID;
+        bool check_ID = true;
+        std::chrono::time_point<std::chrono::system_clock> scan_start;
+        scan_start = std::chrono::system_clock::now();
+        uint64_t scanElapsed = 0;
+        while(check_ID) {
+            ros::spinOnce();
+            scanElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-scan_start).count();
+            temp_ID = imagePipeline.getTemplateID(boxes); //returns the most matched template ID
+            if(temp_ID != 0) {
+                check_ID = false;
+                picture_ID = temp_ID;
+            }
+            else if(scanElapsed > 45){
+                check_ID = false;
+                picture_ID = 4;
+            }
+
+        }
         
+        //0->invalid, 1->template1, 2->template2, 3->template3, 4->blank page
+        std::cout << "Picture ID:" << picture_ID << std::endl;
+
         ros::Duration(0.01).sleep();
         secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count(); 
     }
