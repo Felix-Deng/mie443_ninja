@@ -227,7 +227,9 @@ int main(int argc, char** argv) {
         // Image recognition 
         int result = imagePipeline.getTemplateID(boxes); //returns the most matched template ID
         std::cout << "Picture ID:" << result << std::endl;
+        
         ros::Duration(0.01).sleep();
+        secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count(); 
     }
     return 0;
 }
