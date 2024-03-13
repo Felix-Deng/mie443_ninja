@@ -3,6 +3,7 @@
 #include <robot_pose.h>
 #include <imagePipeline.h>
 #include <nav_msgs/GetPlan.h>
+#include <tf/transform_datatypes.h>
 #include <chrono>
 
 #include <cmath>
@@ -12,11 +13,45 @@ float angle_rotation_adj(float posx1, float posy1, float posx2, float posy2, flo
     return acos(1 - (pow(posx1 - posx2, 2) + pow(posy1 - posy2, 2)) / (2 * pow(offset, 2)));
 }
 
+bool check_plan(float start_posx, float start_posy, float start_phi, float goal_posx, float goal_posy, float goal_phi, ros::NodeHandle n){
+    ros::ServiceClient check_path = n.serviceClient<nav_msgs::GetPlan>("/move_base/NavfnROS/make_plan"); 
+    nav_msgs::GetPlan srv; 
+
+    geometry_msgs::Quaternion start_orient = tf::createQuaternionMsgFromYaw(start_phi); 
+    srv.request.start.header.frame_id = "map"; 
+    srv.request.start.header.stamp = ros::Time::now(); 
+    srv.request.start.pose.position.x = start_posx; 
+    srv.request.start.pose.position.y = start_posy; 
+    srv.request.start.pose.position.z = 0.0; 
+    srv.request.start.pose.orientation.x = 0.0; 
+    srv.request.start.pose.orientation.y = 0.0; 
+    srv.request.start.pose.orientation.z = start_orient.z; 
+    srv.request.start.pose.orientation.w = start_orient.w;
+
+    geometry_msgs::Quaternion goal_orient = tf::createQuaternionMsgFromYaw(goal_phi); 
+    srv.request.goal.header.frame_id = "map"; 
+    srv.request.goal.header.stamp = ros::Time::now(); 
+    srv.request.goal.pose.position.x = goal_posx; 
+    srv.request.goal.pose.position.y = goal_posy; 
+    srv.request.goal.pose.position.z = 0.0; 
+    srv.request.goal.pose.orientation.x = 0.0; 
+    srv.request.goal.pose.orientation.y = 0.0; 
+    srv.request.goal.pose.orientation.z = goal_orient.z; 
+    srv.request.goal.pose.orientation.w = goal_orient.w;
+
+    srv.request.tolerance = 0.0; 
+    bool callExecuted = check_path.call(srv); 
+    if (!callExecuted){
+        std::cout << "Call to check plan NOT sent" << std::endl; 
+    }
+    return srv.response.plan.poses.size() > 0; 
+}
+
 void get_target(
     float box_x, float box_y, float box_phi, float *target_x, float *target_y, float *target_phi, 
     float min_x, float max_x, float min_y, float max_y, RobotPose current_pos, ros::NodeHandle n
 ) {
-    float offset = 0.2; 
+    float offset = 0.5; 
     *target_x = box_x + offset * std::cos(box_phi); 
     *target_y = box_y + offset * std::sin(box_phi); 
     if (box_phi >= 0.0){
@@ -26,15 +61,7 @@ void get_target(
         *target_phi = box_phi + M_PI; 
     }
     
-    // Check if the target path is feasible 
-    ros::ServiceClient check_path = n.serviceClient<nav_msgs::GetPlan>("/move_base/NavfnROS/make_plan");
-    nav_msgs::GetPlan srv;
-    srv.request.start = current_pos;
-    RobotPose target_pos(*target_x, *target_y, *target_phi); 
-    srv.request.goal = target_pos;
-    check_path.call(srv);
-    
-    if (srv.response.plan.poses.size() == 0){
+    if (check_plan(current_pos.x, current_pos.y, current_pos.phi, *target_x, *target_y, *target_phi, n) == false){
         // Path unavailable; a new path is needed 
         float temp_x = *target_x, temp_y = *target_y; 
         if (*target_x > max_x){
@@ -83,71 +110,55 @@ void get_target(
         }
         else {
             // The target position is stepping onto another box 
+            std::cout << "Pass" << std::endl; 
             return; 
         }
     }
 }
 
-void get_boundary(float *min_x, float *max_x, float *min_y, float *max_y, ros::NodeHandle n) {
-    // Initialize feature to check if the target path is feasible 
-    ros::ServiceClient check_path = n.serviceClient<nav_msgs::GetPlan>("/move_base/NavfnROS/make_plan");
-    nav_msgs::GetPlan srv;
-    RobotPose origin_pos(0.0, 0.0, 0.0); 
-    srv.request.start = origin_pos;
-    
+void get_boundary(float *min_x, float *max_x, float *min_y, float *max_y, ros::NodeHandle n){
+    float bound = 5.0, increment = 0.02; 
     bool boundary_found = false; 
-    *min_x = -4.0; 
+    *min_x = -bound; 
     while(!boundary_found) {
-        RobotPose test_pos(*min_x, 0.0, 0.0); 
-        srv.request.goal = test_pos;
-        check_path.call(srv);
-        if (srv.response.plan.poses.size() > 0){
+        if (check_plan(0.0, 0.0, 0.0, *min_x, 0.0, 0.0, n) == true){
             boundary_found = true; 
         }
         else {
-            *min_x += 0.01; 
+            *min_x += increment; 
         }
     }
 
     boundary_found = false; 
-    *max_x = 4.0; 
+    *max_x = bound; 
     while(!boundary_found) {
-        RobotPose test_pos(*max_x, 0.0, 0.0); 
-        srv.request.goal = test_pos;
-        check_path.call(srv);
-        if (srv.response.plan.poses.size() > 0){
+        if (check_plan(0.0, 0.0, 0.0, *max_x, 0.0, 0.0, n) == true){
             boundary_found = true; 
         }
         else {
-            *max_x -= 0.01; 
+            *max_x -= increment; 
         }
     }
 
     boundary_found = false; 
-    *min_y = -4.0; 
+    *min_y = -bound; 
     while(!boundary_found) {
-        RobotPose test_pos(0.0, *min_y, 0.0); 
-        srv.request.goal = test_pos;
-        check_path.call(srv);
-        if (srv.response.plan.poses.size() > 0){
+        if (check_plan(0.0, 0.0, 0.0, 0.0, *min_y, 0.0, n) == true){
             boundary_found = true; 
         }
         else {
-            *min_y += 0.01; 
+            *min_y += increment; 
         }
     }
 
     boundary_found = false; 
-    *max_y = 4.0; 
+    *max_y = bound; 
     while(!boundary_found) {
-        RobotPose test_pos(0.0, *max_y, 0.0); 
-        srv.request.goal = test_pos;
-        check_path.call(srv);
-        if (srv.response.plan.poses.size() > 0){
+        if (check_plan(0.0, 0.0, 0.0, 0.0, *max_y, 0.0, n) == true){
             boundary_found = true; 
         }
         else {
-            *max_y -= 0.01; 
+            *max_y -= increment; 
         }
     }
 }
@@ -187,10 +198,11 @@ int main(int argc, char** argv) {
         ros::spinOnce();
         // Use: boxes.coords
         // Use: robotPose.x, robotPose.y, robotPose.phi
-        
+
         if (current_box == 0) {
             // Get environmnet boundary before initial run 
             get_boundary(&min_x, &max_x, &min_y, &max_y, n); 
+            std::cout << "Min: (" << min_x << ", " << min_y << ") Max: (" << max_x << ", " << max_y << ")" << std::endl; 
         }
         else if (current_box == boxes.coords.size()) {
             // Task completed with all boxes scanned 
@@ -211,8 +223,8 @@ int main(int argc, char** argv) {
         std::cout << "Target location (" << target_x << ", " << target_y << ") & phi = " << target_phi << std::endl; 
         Navigation::moveToGoal(target_x, target_y, target_phi); 
         current_box += 1; 
-
-        // Image recognition @ Olivia 
+        
+        // Image recognition 
         int result = imagePipeline.getTemplateID(boxes); //returns the most matched template ID
         std::cout << "Picture ID:" << result << std::endl;
         ros::Duration(0.01).sleep();
