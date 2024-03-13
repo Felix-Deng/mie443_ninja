@@ -19,8 +19,9 @@ float angle_rotation_adj(float posx1, float posy1, float posx2, float posy2, flo
 void write_to_file(int tag, float x, float y, float z, float phi){
     ofstream myfile;
     myfile.open("result.txt");
-    myfile << "coordinate:%f,%f,%f,%f", x, y, z, phi;
-    myfile << "tag:%d", tag;
+    myfile << "coordinate:" << x << "," << y << "," << z << "," << phi << "\n";
+    myfile << "tag:" << tag << "\n";
+    myfile << "\n";
     myfile.close();
 }
 
