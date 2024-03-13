@@ -53,7 +53,7 @@ void ImagePipeline::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 int ImagePipeline::getTemplateID(Boxes& boxes) {
    int template_id = -1;
    if(!isValid) {
-       std::cout << "ERROR: INVALID IMAGE!" << std::endl;
+       //std::cout << "ERROR: INVALID IMAGE!" << std::endl;
     
    } else if(img.empty() || img.rows <= 0 || img.cols <= 0) {
        std::cout << "ERROR: VALID IMAGE, BUT STILL A PROBLEM EXISTS!" << std::endl;
