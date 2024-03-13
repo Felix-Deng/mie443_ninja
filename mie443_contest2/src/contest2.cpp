@@ -4,13 +4,26 @@
 #include <imagePipeline.h>
 #include <nav_msgs/GetPlan.h>
 #include <chrono>
+#include <iostream>
+#include <fstream>
 
 #include <cmath>
+
+using namespace std;
 
 
 float angle_rotation_adj(float posx1, float posy1, float posx2, float posy2, float offset){
     return acos(1 - (pow(posx1 - posx2, 2) + pow(posy1 - posy2, 2)) / (2 * pow(offset, 2)));
 }
+
+void write_to_file(int tag, float x, float y, float z, float phi){
+    ofstream myfile;
+    myfile.open("result.txt");
+    myfile << "coordinate:%f,%f,%f,%f", x, y, z, phi;
+    myfile << "tag:%d", tag;
+    myfile.close();
+}
+
 
 void get_target(float box_x, float box_y, float box_phi, float *target_x, float *target_y, float *target_phi, ros::NodeHandle n) {
     float offset = 0.2; 
@@ -144,6 +157,8 @@ int main(int argc, char** argv) {
         //0->invalid, 1->template1, 2->template2, 3->template3, 4->blank page
         std::cout << "Picture ID:" << result << std::endl;
         ros::Duration(0.01).sleep();
+
+        write_to_file(1,2,3,4,5);
     }
     return 0;
 }
