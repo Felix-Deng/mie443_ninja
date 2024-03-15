@@ -5,6 +5,8 @@
 #include <nav_msgs/GetPlan.h>
 #include <tf/transform_datatypes.h>
 #include <chrono>
+#include <iostream>
+#include <fstream>
 
 #include <cmath>
 
@@ -163,6 +165,19 @@ void get_boundary(float *min_x, float *max_x, float *min_y, float *max_y, ros::N
     }
 }
 
+void write_to_file(int tag_IDs[], Boxes boxes){
+    std::ofstream myfile;
+    myfile.open("result.txt");
+
+    for (int i = 0; i < boxes.coords.size(); i++){
+        myfile << "Coordinate: (" << boxes.coords[i][0] << ", " << boxes.coords[i][1] << ", " << boxes.coords[i][2] << ")\n";
+        myfile << "Tag:" << tag_IDs[i] << "\n";
+        myfile << "\n";
+    }
+
+    myfile.close();
+}
+
 int main(int argc, char** argv) {
     // Setup ROS.
     ros::init(argc, argv, "contest2");
@@ -192,6 +207,7 @@ int main(int argc, char** argv) {
     int current_box = 0; // current target box in the list 
     float min_x, min_y, max_x, max_y; // boundary of the environment 
     float target_x, target_y, target_phi; // target location and orientation for the robot
+    int pic_IDs [] = {0, 0, 0, 0, 0}; // store the picture IDs scanned 
 
     // Execute strategy.
     while(ros::ok() && secondsElapsed <= 300) {
@@ -248,9 +264,14 @@ int main(int argc, char** argv) {
         
         //0->invalid, 1->template1, 2->template2, 3->template3, 4->blank page
         std::cout << "Picture ID:" << picture_ID << std::endl;
-
+        pic_IDs[current_box - 1] = picture_ID; 
+        
         ros::Duration(0.01).sleep();
-        secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count(); 
+        // secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count(); 
     }
+
+    // Save scanned picture IDs to file 
+    write_to_file(pic_IDs, boxes); 
+
     return 0;
 }
