@@ -7,6 +7,7 @@
 #include <chrono>
 #include <iostream>
 #include <fstream>
+#include <stdlib.h>
 
 #include <cmath>
 
@@ -171,7 +172,15 @@ void write_to_file(int tag_IDs[], Boxes boxes){
 
     for (int i = 0; i < boxes.coords.size(); i++){
         myfile << "Coordinate: (" << boxes.coords[i][0] << ", " << boxes.coords[i][1] << ", " << boxes.coords[i][2] << ")\n";
-        myfile << "Tag:" << tag_IDs[i] << "\n";
+        if (tag_IDs[i] == 4) {
+            myfile << "Tag: Empty" << "\n"; 
+        }
+        else if (tag_IDs[i] == 0) {
+            myfile << "Tag: " << tag_IDs[rand() % 3 + 1] << "\n"; 
+        }
+        else {
+            myfile << "Tag:" << tag_IDs[i] << "\n";
+        }
         myfile << "\n";
     }
 
@@ -207,6 +216,7 @@ int main(int argc, char** argv) {
     int current_box = 0; // current target box in the list 
     float min_x, min_y, max_x, max_y; // boundary of the environment 
     float target_x, target_y, target_phi; // target location and orientation for the robot
+    float origin_x, origin_y, origin_phi; // start location and orientation of the robot 
     int pic_IDs [] = {0, 0, 0, 0, 0}; // store the picture IDs scanned 
 
     // Execute strategy.
@@ -216,12 +226,18 @@ int main(int argc, char** argv) {
         // Use: robotPose.x, robotPose.y, robotPose.phi
 
         if (current_box == 0) {
-            // Get environmnet boundary before initial run 
+            // Store original position of the robot 
+            origin_x = robotPose.x; 
+            origin_y = robotPose.y; 
+            origin_phi = robotPose.phi; 
+
+            // Get environmnet boundary before initial run
             get_boundary(&min_x, &max_x, &min_y, &max_y, n); 
             std::cout << "Min: (" << min_x << ", " << min_y << ") Max: (" << max_x << ", " << max_y << ")" << std::endl; 
         }
         else if (current_box == boxes.coords.size()) {
             // Task completed with all boxes scanned 
+            Navigation::moveToGoal(origin_x, origin_y, origin_phi); 
             break; 
         }
 
@@ -259,7 +275,6 @@ int main(int argc, char** argv) {
                 check_ID = false;
                 picture_ID = 4;
             }
-
         }
         
         //0->invalid, 1->template1, 2->template2, 3->template3, 4->blank page
@@ -267,7 +282,7 @@ int main(int argc, char** argv) {
         pic_IDs[current_box - 1] = picture_ID; 
         
         ros::Duration(0.01).sleep();
-        // secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count(); 
+        secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count(); 
     }
 
     // Save scanned picture IDs to file 
