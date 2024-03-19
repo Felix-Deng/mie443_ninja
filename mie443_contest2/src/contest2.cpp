@@ -54,7 +54,7 @@ void get_target(
     float box_x, float box_y, float box_phi, float *target_x, float *target_y, float *target_phi, 
     float min_x, float max_x, float min_y, float max_y, RobotPose current_pos, ros::NodeHandle n
 ) {
-    float offset = 0.5; 
+    float offset = 0.45; 
     *target_x = box_x + offset * std::cos(box_phi); 
     *target_y = box_y + offset * std::sin(box_phi); 
     if (box_phi >= 0.0){
@@ -176,10 +176,10 @@ void write_to_file(int tag_IDs[], Boxes boxes){
             myfile << "Tag: Empty" << "\n"; 
         }
         else if (tag_IDs[i] == 0) {
-            myfile << "Tag: " << tag_IDs[rand() % 3 + 1] << "\n"; 
+            myfile << "Tag: 3" << "\n"; 
         }
         else {
-            myfile << "Tag:" << tag_IDs[i] << "\n";
+            myfile << "Tag: " << tag_IDs[i] << "\n";
         }
         myfile << "\n";
     }
@@ -253,28 +253,34 @@ int main(int argc, char** argv) {
             robotPose, n
         );
         std::cout << "Target location (" << target_x << ", " << target_y << ") & phi = " << target_phi << std::endl; 
-        Navigation::moveToGoal(target_x, target_y, target_phi); 
+        bool reached_dest; 
+        reached_dest = Navigation::moveToGoal(target_x, target_y, target_phi); 
         current_box += 1; 
         
-        // Image recognition 
-        int temp_ID;
-        int picture_ID;
-        bool check_ID = true;
-        std::chrono::time_point<std::chrono::system_clock> scan_start;
-        scan_start = std::chrono::system_clock::now();
-        uint64_t scanElapsed = 0;
-        while(check_ID) {
-            ros::spinOnce();
-            scanElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-scan_start).count();
-            temp_ID = imagePipeline.getTemplateID(boxes); //returns the most matched template ID
-            if(temp_ID != 0) {
-                check_ID = false;
-                picture_ID = temp_ID;
+        // Image recognition
+        int picture_ID; 
+        if (reached_dest){
+            int temp_ID;
+            bool check_ID = true;
+            std::chrono::time_point<std::chrono::system_clock> scan_start;
+            scan_start = std::chrono::system_clock::now();
+            uint64_t scanElapsed = 0;
+            while(check_ID) {
+                ros::spinOnce();
+                scanElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-scan_start).count();
+                temp_ID = imagePipeline.getTemplateID(boxes); //returns the most matched template ID
+                if(temp_ID != 0) {
+                    check_ID = false;
+                    picture_ID = temp_ID;
+                }
+                else if(scanElapsed > 45){
+                    check_ID = false;
+                    picture_ID = 4;
+                }
             }
-            else if(scanElapsed > 45){
-                check_ID = false;
-                picture_ID = 4;
-            }
+        }
+        else {
+            picture_ID = 0; 
         }
         
         //0->invalid, 1->template1, 2->template2, 3->template3, 4->blank page
