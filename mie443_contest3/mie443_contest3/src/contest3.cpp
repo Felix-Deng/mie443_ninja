@@ -1,5 +1,6 @@
 #include <header.h>
 #include <ros/package.h>
+#include <kobuki_msgs/BumperEvent.h>
 #include <imageTransporter.hpp>
 #include <chrono>
 
@@ -12,8 +13,11 @@ void followerCB(const geometry_msgs::Twist msg){
     follow_cmd = msg;
 }
 
-void bumperCB(const geometry_msgs::Twist msg){
+uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED}; 
+
+void bumperCB(const kobuki_msgs::BumperEvent::ConstPtr& msg){
     //Fill with code
+	bumper[msg->bumper] = msg->state;
 }
 
 //-------------------------------------------------------------
@@ -52,22 +56,35 @@ int main(int argc, char **argv)
 	vel.angular.z = angular;
 	vel.linear.x = linear;
 
-	sc.playWave(path_to_sounds + "sound.wav");
-	ros::Duration(0.5).sleep();
+
 
 	while(ros::ok() && secondsElapsed <= 480){		
 		ros::spinOnce();
 
-		if(world_state == 0){
-			//fill with your code
-			//vel_pub.publish(vel);
-			vel_pub.publish(follow_cmd);
-
+		if(world_state == 0){ 
+			// Normal following mode 
+			// vel_pub.publish(vel);
+			vel_pub.publish(follow_cmd)
 		}else if(world_state == 1){
-			/*
-			...
-			...
-			*/
+			// When ... 
+			sc.playWave(path_to_sounds + "sound.wav");
+			ros::Duration(0.5).sleep();
+			sc.stopWave(path_to_sounds + "sound.wav"); 
+		}else if (world_state == 2){
+			// When ... 
+			sc.playWave(path_to_sounds + "sound.wav");
+			ros::Duration(0.5).sleep();
+			sc.stopWave(path_to_sounds + "sound.wav"); 
+		}else if (world_state == 3){
+			// When ... 
+			sc.playWave(path_to_sounds + "sound.wav");
+			ros::Duration(0.5).sleep();
+			sc.stopWave(path_to_sounds + "sound.wav"); 
+		}else if (world_state == 4){
+			// When ... 
+			sc.playWave(path_to_sounds + "sound.wav");
+			ros::Duration(0.5).sleep();
+			sc.stopWave(path_to_sounds + "sound.wav"); 
 		}
 		secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count();
 		loop_rate.sleep();
