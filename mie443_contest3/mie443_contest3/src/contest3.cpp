@@ -20,6 +20,12 @@ void bumperCB(const kobuki_msgs::BumperEvent::ConstPtr& msg){
 	bumper[msg->bumper] = msg->state;
 }
 
+bool is_stopped(geometry_msgs::Twist speed){
+	float linear_acc = speed.linear.x + speed.linear.y + speed.linear.z;
+	float angular_acc = speed.angular.x + speed.angular.y + speed.angular.z; 
+	return linear_acc == 0 && angular_acc == 0; 
+}
+
 //-------------------------------------------------------------
 
 int main(int argc, char **argv)
@@ -35,7 +41,7 @@ int main(int argc, char **argv)
 
 	//subscribers
 	ros::Subscriber follower = nh.subscribe("follower_velocity_smoother/smooth_cmd_vel", 10, &followerCB);
-	ros::Subscriber bumper = nh.subscribe("mobile_base/events/bumper", 10, &bumperCB);
+	ros::Subscriber bumper_sub = nh.subscribe("mobile_base/events/bumper", 10, &bumperCB);
 
     // contest count down timer
 	ros::Rate loop_rate(10);
@@ -56,22 +62,33 @@ int main(int argc, char **argv)
 	vel.angular.z = angular;
 	vel.linear.x = linear;
 
-
-
 	while(ros::ok() && secondsElapsed <= 480){		
 		ros::spinOnce();
 
+		
+		bool any_bumper_pressed = false; 
+        for (int b_idx=0; b_idx < 3; ++b_idx){
+            any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED); 
+        }
+		
+		if(any_bumper_pressed){
+			world_state = 2; 
+		}
+		else if(is_stopped(follow_cmd)){
+			world_state = 1; 
+		}
+		 
 		if(world_state == 0){ 
 			// Normal following mode 
 			// vel_pub.publish(vel);
-			vel_pub.publish(follow_cmd)
+			vel_pub.publish(follow_cmd); 
 		}else if(world_state == 1){
-			// When ... 
+			// Case 1: when the robot loses track of the person it is following 
 			sc.playWave(path_to_sounds + "sound.wav");
 			ros::Duration(0.5).sleep();
 			sc.stopWave(path_to_sounds + "sound.wav"); 
 		}else if (world_state == 2){
-			// When ... 
+			// Case 2: when the robot cannot continue to track the person due to a static obstacle in its path 
 			sc.playWave(path_to_sounds + "sound.wav");
 			ros::Duration(0.5).sleep();
 			sc.stopWave(path_to_sounds + "sound.wav"); 
