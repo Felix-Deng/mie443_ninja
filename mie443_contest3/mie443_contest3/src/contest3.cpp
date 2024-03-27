@@ -3,8 +3,13 @@
 #include <kobuki_msgs/BumperEvent.h>
 #include <imageTransporter.hpp>
 #include <chrono>
+#include <iostream>
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
 
 using namespace std;
+using namespace cv; 
 
 geometry_msgs::Twist follow_cmd;
 int world_state;
@@ -34,6 +39,7 @@ int main(int argc, char **argv)
 	ros::NodeHandle nh;
 	sound_play::SoundClient sc;
 	string path_to_sounds = ros::package::getPath("mie443_contest3") + "/sounds/";
+	string path_to_images = ros::package::getPath("mie443_contest3") + "/images/"; 
 	teleController eStop;
 
 	//publishers
@@ -82,9 +88,15 @@ int main(int argc, char **argv)
 			// Normal following mode 
 			// vel_pub.publish(vel);
 			vel_pub.publish(follow_cmd); 
+
+			// Show positively excited emotion 
+			Mat img = imread(path_to_images + "excited.png", IMREAD_COLOR); 
+			imshow("Display window", img); 
+			ros::Duration(0.5).sleep(); 
 		}else if(world_state == 1){
 			// Case 1: when the robot loses track of the person it is following 
-			sc.playWave(path_to_sounds + "sound.wav");
+			// Play ... sound 
+			sc.playWave(path_to_sounds + "sound.wav"); 
 			ros::Duration(0.5).sleep();
 			sc.stopWave(path_to_sounds + "sound.wav"); 
 		}else if (world_state == 2){
