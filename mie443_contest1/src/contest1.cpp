@@ -28,7 +28,17 @@ float max_x = 0.0, min_x = 0.0, max_y = 0.0, min_y = 0.0; // search history trac
 
 uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED}; 
 float minLaserDist = std::numeric_limits<float>::infinity();
+<<<<<<< HEAD
+float maxLaserDist =0.0;
+float maxDistAngle = 0.0;
+float setYaw = 0.0, turnAngle;
 int32_t nLasers=0, desiredNLasers=0, desiredAngle = 20;
+int32_t maxLaserID;
+
+bool turn;
+=======
+int32_t nLasers=0, desiredNLasers=0, desiredAngle = 20;
+>>>>>>> 993a27d69e3c305f53162a012130065d6bcc7655
 
 void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr& msg)
 {
@@ -40,8 +50,9 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
 	minLaserDist = std::numeric_limits<float>::infinity(); 
     nLasers = (msg->angle_max - msg->angle_min) / msg->angle_increment;
     desiredNLasers = desiredAngle * M_PI / (180 * msg->angle_increment);
-    ROS_INFO("Size of laser scan array: %i and size of offset: %i", nLasers, desiredNLasers);
+    //ROS_INFO("Size of laser scan array: %i and size of offset: %i", nLasers, desiredNLasers);
 
+    //finding the minimum laser distance
     if(desiredAngle * M_PI/180 < msg->angle_max && -desiredAngle * M_PI/180 > msg->angle_min){
         for(uint32_t laser_idx = nLasers / 2 - desiredNLasers; laser_idx < nLasers / 2 + desiredNLasers; ++laser_idx){
             minLaserDist = std::min(minLaserDist, msg->ranges[laser_idx]); 
@@ -52,6 +63,18 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
             minLaserDist = std::min(minLaserDist, msg->ranges[laser_idx]); 
         }
     }
+
+    //finding the max laser distance measured from the array
+    for (uint32_t laser_idx=0; laser_idx < nLasers; ++laser_idx)
+        {
+            if(msg->ranges[laser_idx]>msg->ranges[laser_idx+1])
+            {
+                maxLaserDist = msg->ranges[laser_idx];
+                maxLaserID = laser_idx;
+            }
+        }
+    maxDistAngle = (nLasers/2 - maxLaserID)*(msg->angle_increment); 
+    //positive angle is left, negative is right. Value is in Rad
 }
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
@@ -59,7 +82,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     posX = msg->pose.pose.position.x; 
     posY = msg->pose.pose.position.y; 
     yaw = tf::getYaw(msg->pose.pose.orientation); 
-    ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, RAD2DEG(yaw)); 
+    //ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, RAD2DEG(yaw)); 
 }
 
 void set_vel(bool bumper_pressed, float min_laser_dist, bool reverse_turn) {
@@ -200,6 +223,17 @@ int main(int argc, char **argv)
             target_yaw = yaw; 
             delay_bumper = false; 
         }
+<<<<<<< HEAD
+        else {
+            angular = 0.0; 
+            linear = 0.0; 
+        }
+    */
+
+    while(ros::ok() && secondsElapsed <= 480) {
+        ros::spinOnce();
+=======
+>>>>>>> 993a27d69e3c305f53162a012130065d6bcc7655
         
         // Check if any of the bumpers were pressed 
         bool any_bumper_pressed = false; 
@@ -207,6 +241,239 @@ int main(int argc, char **argv)
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED); 
         }
 
+<<<<<<< HEAD
+        // Control logic after bumpers are being pressed 
+        //ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
+        
+        /*
+        // object detected (<0.5), stop and turn (ideally turn to the direction with the minLaserDist, add a delay[s])
+        if (any_bumper_pressed){
+            ROS_INFO("Bumper is pressed, move back linearly");
+            angular = 0.0; 
+            linear = -0.1;
+        }
+        else if (minLaserDist < 0.5) {
+            angular = M_PI / 6;
+            linear = 0.0;
+        }
+        */
+        if (any_bumper_pressed)
+       {
+            // linear = 0;
+            // angular = M_PI / 3;
+            // vel.angular.z = angular;
+            // vel.linear.x = linear;
+            // vel_pub.publish(vel);
+
+            //ros::Durantion::sleep();
+            ROS_INFO("Bumper hit, turning around");
+            // linear = -0.05;
+            // angular = M_PI / 6;
+            // vel.angular.z = angular;
+            // vel.linear.x = linear;
+            // vel_pub.publish(vel);
+            // ros::Duration::sleep(2000);
+            setYaw = yaw;
+            turnAngle = M_PI / 6;
+            turn = true;
+            ROS_INFO("minLaserDist:%f, TurnAngle:%f", minLaserDist, turnAngle);
+            while (turn)
+            {   
+                ros::spinOnce();
+                linear = 0;
+                angular = M_PI / 4;
+                vel.angular.z = angular;
+                vel.linear.x = linear;
+                vel_pub.publish(vel);
+                if (abs(setYaw - yaw) >= turnAngle)
+                {
+                    ROS_INFO("Completed turning");
+                    linear = 0;
+                    angular = 0;
+                    vel.angular.z = angular;
+                    vel.linear.x = linear;
+                    vel_pub.publish(vel);
+                    turn = false;
+                }
+                else
+                {
+                    turn = true;
+                }
+            }
+       }
+
+//if minimum distance less than x, move forward
+       if (minLaserDist > 0.6 && !any_bumper_pressed && minLaserDist != INFINITY) 
+       {
+            linear = 0.2;
+            angular = 0;
+            //ROS_INFO("Foward");
+            vel.angular.z = angular;
+            vel.linear.x = linear;
+            vel_pub.publish(vel);
+       }
+       
+//if minimum distance less than x and there is a lager distance available, turn
+//minLaserDist <= 0.55 && maxLaserDist >= 0.55
+       else if (minLaserDist <= 0.6 && maxLaserDist >= 0.6) 
+       {
+            linear = 0;
+            angular = 0;
+            vel.angular.z = angular;
+            vel.linear.x = linear;
+            vel_pub.publish(vel);
+            setYaw = yaw;
+            turnAngle = maxDistAngle;
+            ROS_INFO("Small turn, maxDistAngle:%f", maxDistAngle);
+            ROS_INFO("minLaserDist:%f, maxLaserDist:%f",minLaserDist, maxLaserDist);
+            turn = true;
+            while (turn)
+            {   
+                ros::spinOnce();
+                if (turnAngle > 0)
+                {
+                    linear = 0;
+                    angular = M_PI / 3; //turn left
+                    vel.angular.z = angular;
+                    vel.linear.x = linear;
+                    vel_pub.publish(vel);
+                    ROS_INFO("Turning left");
+                }
+                else if (turnAngle <= 0)
+                {
+                    linear = 0;
+                    angular = -M_PI / 3; //turn right
+                    vel.angular.z = angular;
+                    vel.linear.x = linear;
+                    vel_pub.publish(vel);
+                    ROS_INFO("Turning right");
+                }
+
+                if (abs(setYaw - yaw) >= abs(turnAngle))
+                {
+                    ROS_INFO("Completed turning");
+                    // linear = 0;
+                    // angular = 0;
+                    // vel.angular.z = angular;
+                    // vel.linear.x = linear;
+                    // vel_pub.publish(vel);
+                    turn = false;
+                }
+                else
+                {
+                    turn = true;
+                }
+            }
+       }
+//if minimum distance and max distance both less than 0.5, turn 180 deg
+       else if (minLaserDist <= 0.6 && maxLaserDist <= 0.6)
+       {
+            ROS_INFO("Large turn");
+            ROS_INFO("minLaserDist:%f, maxLaserDist:%f, maxDistAngle:%f",minLaserDist, maxLaserDist, maxDistAngle);
+            linear = 0;
+            angular = 0;
+            vel.angular.z = angular;
+            vel.linear.x = linear;
+            vel_pub.publish(vel);
+            setYaw = yaw;
+            turnAngle = M_PI / 4;
+            turn = true;
+            //if (maxDistAngle >= 0)
+            //{
+                ROS_INFO("Corner, turning left");
+                while (turn)
+                {   
+                    ros::spinOnce();
+                    //ROS_INFO("maxLaserDist:%f, minLaserDist:%f,Turning around", maxLaserDist, minLaserDist);
+                    linear = 0;
+                    angular = M_PI / 3;
+                    vel.angular.z = angular;
+                    vel.linear.x = linear;
+                    vel_pub.publish(vel);
+                    if (abs(setYaw - yaw) >= abs(turnAngle))
+                    {
+                        ROS_INFO("Completed turning");
+                        linear = 0;
+                        angular = 0;
+                        vel.angular.z = angular;
+                        vel.linear.x = linear;
+                        vel_pub.publish(vel);
+                        turn = false;
+                    }
+                    else
+                    {
+                        turn = true;
+                    }
+                }
+            //}
+    //         else if (maxDistAngle <= 0 && abs(maxLaserDist - minLaserDist)>0.02)
+    //         {
+    //             ROS_INFO("Corner, turning right");
+    //             while (turn)
+    //             {   
+    //                 ros::spinOnce();
+    //                 //ROS_INFO("maxLaserDist:%f, minLaserDist:%f,Turning around", maxLaserDist, minLaserDist);
+    //                 linear = 0;
+    //                 angular = -M_PI / 3;
+    //                 vel.angular.z = angular;
+    //                 vel.linear.x = linear;
+    //                 vel_pub.publish(vel);
+    //                 if (abs(setYaw - yaw) >= abs(turnAngle))
+    //                 {
+    //                     ROS_INFO("Completed turning");
+    //                     linear = 0;
+    //                     angular = 0;
+    //                     vel.angular.z = angular;
+    //                     vel.linear.x = linear;
+    //                     vel_pub.publish(vel);
+    //                     turn = false;
+    //                 }
+    //                 else
+    //                 {
+    //                     turn = true;
+    //                 }
+    //             }
+    //         }
+    //         else
+    //         {
+    //             ROS_INFO("Corner, turning left");
+    //             while (turn)
+    //             {   
+    //                 ros::spinOnce();
+    //                 //ROS_INFO("maxLaserDist:%f, minLaserDist:%f,Turning around", maxLaserDist, minLaserDist);
+    //                 linear = 0;
+    //                 angular = M_PI / 2;
+    //                 vel.angular.z = angular;
+    //                 vel.linear.x = linear;
+    //                 vel_pub.publish(vel);
+    //                 if (abs(setYaw - yaw) >= abs(turnAngle))
+    //                 {
+    //                     ROS_INFO("Completed turning");
+    //                     linear = 0;
+    //                     angular = 0;
+    //                     vel.angular.z = angular;
+    //                     vel.linear.x = linear;
+    //                     vel_pub.publish(vel);
+    //                     turn = false;
+    //                 }
+    //                 else
+    //                 {
+    //                     turn = true;
+    //                 }
+    //             }
+    //         }
+            
+        }
+       else
+       {
+            linear = 0;
+            angular = M_PI / 4;
+            vel.angular.z = angular;
+            vel.linear.x = linear;
+            vel_pub.publish(vel);
+       }
+       
+=======
         ROS_INFO("Position: (%f, %f) Orientation: %f degrees Ranges: %f", posX, posY, RAD2DEG(yaw), minLaserDist); 
         
         if (secondsElapsed <= 120) {
@@ -243,6 +510,7 @@ int main(int argc, char **argv)
         }
         
         update_pos_history(); // update history tracking 
+>>>>>>> 993a27d69e3c305f53162a012130065d6bcc7655
 
         vel.angular.z = angular;
         vel.linear.x = linear;
