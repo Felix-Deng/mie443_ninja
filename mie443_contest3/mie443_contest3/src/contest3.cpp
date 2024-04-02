@@ -4,9 +4,8 @@
 #include <imageTransporter.hpp>
 #include <chrono>
 #include <iostream>
-#include <opencv2/core.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 using namespace std;
 using namespace cv; 
@@ -71,7 +70,6 @@ int main(int argc, char **argv)
 	while(ros::ok() && secondsElapsed <= 480){		
 		ros::spinOnce();
 
-		
 		bool any_bumper_pressed = false; 
         for (int b_idx=0; b_idx < 3; ++b_idx){
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED); 
@@ -82,6 +80,9 @@ int main(int argc, char **argv)
 		}
 		else if(is_stopped(follow_cmd)){
 			world_state = 1; 
+		} 
+		else {
+			world_state = 0; 
 		}
 		 
 		if(world_state == 0){ 
@@ -89,10 +90,14 @@ int main(int argc, char **argv)
 			// vel_pub.publish(vel);
 			vel_pub.publish(follow_cmd); 
 
-			// Show positively excited emotion 
-			Mat img = imread(path_to_images + "excited.png", IMREAD_COLOR); 
+			// Show positively excited emotion 			
+			Mat img = imread(path_to_images + "excited.png", IMREAD_COLOR);
+			resize(img, img, Size(img.cols * 2, img.rows * 2)); 
+			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
-			ros::Duration(0.5).sleep(); 
+			waitKey(2000); 
+			destroyAllWindows(); 
+			
 		}else if(world_state == 1){
 			// Case 1: when the robot loses track of the person it is following 
 			// Play ... sound 
