@@ -92,20 +92,11 @@ int main(int argc, char **argv)
 			vel_pub.publish(follow_cmd); 
 
 			// Show positively excited emotion 
-			/*
 			Mat img = imread(path_to_images + "excited.png", IMREAD_COLOR);
 			resize(img, img, Size(img.cols * 2, img.rows * 2)); 
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
-			destroyAllWindows(); 
-			*/ 
-			VideoCapture cap(path_to_images + "test.mp4"); 
-			Mat frame; 
-			cap >> frame; 
-			imshow("Frame", frame); 
-			waitKey(2000); 
-			cap.release(); 
 			destroyAllWindows(); 
 			
 		}else if(world_state == 1){
