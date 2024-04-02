@@ -76,12 +76,27 @@ int main(int argc, char **argv)
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED); 
         }
 		
+		bool two_side_pressed = false; 
+		if (bumper[0] == kobuki_msgs::BumperEvent::PRESSED && bumper[2] == kobuki_msgs::BumperEvent::PRESSED){
+			two_side_pressed = true; 
+		}
+
 		if(any_bumper_pressed){
-			world_state = 2; 
+			// Hitting obstacles --> fear 
+			world_state = 1; 
 		}
 		else if(is_stopped(follow_cmd)){
-			world_state = 1; 
+			// Lost track of target --> anger 
+			world_state = 2; 
 		} 
+		else if(two_side_pressed){
+			// Poked by others --> rage 
+			world_state = 3; 
+		}
+		else if (360 <= secondsElapsed <= 370){
+			// Preset time reached --> disconnect 
+			world_state = 4; 
+		}
 		else {
 			world_state = 0; 
 		}
