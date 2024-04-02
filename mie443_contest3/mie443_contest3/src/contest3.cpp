@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 	imageTransporter depthTransport("camera/depth_registered/image_raw", sensor_msgs::image_encodings::TYPE_32FC1);
 
 	int world_state = 0;
-	bool emotion_1 = false, emotion2 = false, emotion3 = false; // keep track of if all three emotions have been actuated before ending 
+	bool emotion1 = false, emotion2 = false, emotion3 = false; // keep track of if all three emotions have been actuated before ending 
 
 	double angular = 0.2;
 	double linear = 0.0;
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 			emotion1 = true; 
 		}
 		else if(is_stopped(follow_cmd)){
-			if (secondsElapsed >= 360 && emotion1 && emotion2 && emotion3){
+			if (secondsElapsed >= 240 && emotion1 && emotion2 && emotion3){
 				// Task completed --> pride 
 				world_state = 4; 
 			}
@@ -116,8 +116,7 @@ int main(int argc, char **argv)
 			// Play fear sound 
 			sc.playWave(path_to_sounds + "fear.wav"); 
 			// Show fear emotion 
-			Mat img = imread(path_to_images + "fear.jpg", IMREAD_COLOR);
-			resize(img, img, Size(img.cols * 2, img.rows * 2)); 
+			Mat img = imread(path_to_images + "fear.jpg", IMREAD_COLOR); 
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
@@ -126,22 +125,20 @@ int main(int argc, char **argv)
 		}else if (world_state == 2){
 			// Case 2: when the robot loses track of the person it is following 
 			// Play anger sound 
-			sc.playWave(path_to_sounds + "anger.wav");
+			sc.playWave(path_to_sounds + "angry.wav");
 			// Show anger emotion 
-			Mat img = imread(path_to_images + "anger.jpg", IMREAD_COLOR);
-			resize(img, img, Size(img.cols * 2, img.rows * 2)); 
+			Mat img = imread(path_to_images + "angry.jpg", IMREAD_COLOR);
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
 			destroyAllWindows(); 
-			sc.stopWave(path_to_sounds + "anger.wav"); 
+			sc.stopWave(path_to_sounds + "angry.wav"); 
 		}else if (world_state == 3){
 			// Case 3: when two bumpers of the robot are being pressed at the same time as a sign of intimitation 
 			// Play rage sound 
 			sc.playWave(path_to_sounds + "rage.wav");
 			// Show rage emotion 
 			Mat img = imread(path_to_images + "rage.jpg", IMREAD_COLOR);
-			resize(img, img, Size(img.cols * 2, img.rows * 2)); 
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
@@ -153,7 +150,6 @@ int main(int argc, char **argv)
 			sc.playWave(path_to_sounds + "pride.wav");
 			// Show pride emotion 
 			Mat img = imread(path_to_images + "pride.jpg", IMREAD_COLOR);
-			resize(img, img, Size(img.cols * 2, img.rows * 2)); 
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
