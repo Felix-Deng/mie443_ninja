@@ -75,31 +75,13 @@ int main(int argc, char **argv)
         for (int b_idx=0; b_idx < 3; ++b_idx){
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED); 
         }
-
-		bool two_side_pressed = false;
-		if (bumper[0] == kobuki_msgs::BumperEvent::PRESSED && bumper[2] == kobuki_msgs::BumperEvent::PRESSED){
-			two_side_pressed = true;
-		}
-		else{
-			two_side_pressed = false;
-		}
-
-		//Fear, Hit obstacle
+		
 		if(any_bumper_pressed){
-			world_state = 1; 
-		}
-		//Anger, Lose track
-		else if(is_stopped(follow_cmd)){
 			world_state = 2; 
+		}
+		else if(is_stopped(follow_cmd)){
+			world_state = 1; 
 		} 
-		//Rage, Poke
-		else if(two_side_pressed){
-			world_state = 3;
-		}
-		//Discontent, time reached
-		else if(370 >= secondsElapsed >= 360){
-			world_state = 4;
-		}
 		else {
 			world_state = 0; 
 		}
