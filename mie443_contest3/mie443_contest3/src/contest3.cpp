@@ -60,6 +60,7 @@ int main(int argc, char **argv)
 	imageTransporter depthTransport("camera/depth_registered/image_raw", sensor_msgs::image_encodings::TYPE_32FC1);
 
 	int world_state = 0;
+	bool emotion_1 = false, emotion2 = false, emotion3 = false; // keep track of if all three emotions have been actuated before ending 
 
 	double angular = 0.2;
 	double linear = 0.0;
@@ -81,22 +82,27 @@ int main(int argc, char **argv)
 			two_side_pressed = true; 
 		}
 
-		if(any_bumper_pressed){
-			// Hitting obstacles --> fear 
-			world_state = 1; 
-		}
-		else if(is_stopped(follow_cmd)){
-			// Lost track of target --> anger 
-			world_state = 2; 
-		} 
-		else if(two_side_pressed){
+		if(two_side_pressed){
 			// Poked by others --> rage 
 			world_state = 3; 
+			emotion3 = true; 
 		}
-		else if (360 <= secondsElapsed <= 370){
-			// Preset time reached --> disconnect 
-			world_state = 4; 
+		else if(any_bumper_pressed){
+			// Hitting obstacles --> fear 
+			world_state = 1; 
+			emotion1 = true; 
 		}
+		else if(is_stopped(follow_cmd)){
+			if (secondsElapsed >= 360 && emotion1 && emotion2 && emotion3){
+				// Task completed --> pride 
+				world_state = 4; 
+			}
+			else {
+				// Lost track of target --> anger 
+				world_state = 2; 
+				emotion2 = true; 
+			}
+		} 
 		else {
 			world_state = 0; 
 		}
@@ -105,36 +111,54 @@ int main(int argc, char **argv)
 			// Normal following mode 
 			// vel_pub.publish(vel);
 			vel_pub.publish(follow_cmd); 
-
-			// Show positively excited emotion 
-			Mat img = imread(path_to_images + "excited.png", IMREAD_COLOR);
+		}else if(world_state == 1){
+			// Case 1: when the robot cannot continue to track the person due to a static obstacle in its path 			
+			// Play fear sound 
+			sc.playWave(path_to_sounds + "fear.wav"); 
+			// Show fear emotion 
+			Mat img = imread(path_to_images + "fear.jpg", IMREAD_COLOR);
 			resize(img, img, Size(img.cols * 2, img.rows * 2)); 
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
 			destroyAllWindows(); 
-			
-		}else if(world_state == 1){
-			// Case 1: when the robot loses track of the person it is following 
-			// Play ... sound 
-			sc.playWave(path_to_sounds + "sound.wav"); 
-			ros::Duration(0.5).sleep();
-			sc.stopWave(path_to_sounds + "sound.wav"); 
+			sc.stopWave(path_to_sounds + "fear.wav"); 
 		}else if (world_state == 2){
-			// Case 2: when the robot cannot continue to track the person due to a static obstacle in its path 
-			sc.playWave(path_to_sounds + "sound.wav");
-			ros::Duration(0.5).sleep();
-			sc.stopWave(path_to_sounds + "sound.wav"); 
+			// Case 2: when the robot loses track of the person it is following 
+			// Play anger sound 
+			sc.playWave(path_to_sounds + "anger.wav");
+			// Show anger emotion 
+			Mat img = imread(path_to_images + "anger.jpg", IMREAD_COLOR);
+			resize(img, img, Size(img.cols * 2, img.rows * 2)); 
+			namedWindow("Display window", WINDOW_AUTOSIZE); 
+			imshow("Display window", img); 
+			waitKey(2000); 
+			destroyAllWindows(); 
+			sc.stopWave(path_to_sounds + "anger.wav"); 
 		}else if (world_state == 3){
-			// When ... 
-			sc.playWave(path_to_sounds + "sound.wav");
-			ros::Duration(0.5).sleep();
-			sc.stopWave(path_to_sounds + "sound.wav"); 
+			// Case 3: when two bumpers of the robot are being pressed at the same time as a sign of intimitation 
+			// Play rage sound 
+			sc.playWave(path_to_sounds + "rage.wav");
+			// Show rage emotion 
+			Mat img = imread(path_to_images + "rage.jpg", IMREAD_COLOR);
+			resize(img, img, Size(img.cols * 2, img.rows * 2)); 
+			namedWindow("Display window", WINDOW_AUTOSIZE); 
+			imshow("Display window", img); 
+			waitKey(2000); 
+			destroyAllWindows(); 
+			sc.stopWave(path_to_sounds + "rage.wav"); 
 		}else if (world_state == 4){
-			// When ... 
-			sc.playWave(path_to_sounds + "sound.wav");
-			ros::Duration(0.5).sleep();
-			sc.stopWave(path_to_sounds + "sound.wav"); 
+			// Case 4: when the robot stops following after 6 minutes as the task is completed 
+			// Play pride sound 
+			sc.playWave(path_to_sounds + "pride.wav");
+			// Show pride emotion 
+			Mat img = imread(path_to_images + "pride.jpg", IMREAD_COLOR);
+			resize(img, img, Size(img.cols * 2, img.rows * 2)); 
+			namedWindow("Display window", WINDOW_AUTOSIZE); 
+			imshow("Display window", img); 
+			waitKey(2000); 
+			destroyAllWindows(); 
+			sc.stopWave(path_to_sounds + "pride.wav"); 
 		}
 		secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count();
 		loop_rate.sleep();
