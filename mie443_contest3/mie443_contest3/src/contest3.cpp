@@ -4,6 +4,7 @@
 #include <imageTransporter.hpp>
 #include <chrono>
 #include <iostream>
+#include <thread>
 #include "opencv2/opencv.hpp"
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -92,7 +93,7 @@ int main(int argc, char **argv)
 			world_state = 1; 
 			emotion1 = true; 
 		}
-		else if(is_stopped(follow_cmd)){
+		else if(is_stopped(follow_cmd) && secondsElapsed >= 5){
 			if (secondsElapsed >= 240 && emotion1 && emotion2 && emotion3){
 				// Task completed --> pride 
 				world_state = 4; 
@@ -113,48 +114,103 @@ int main(int argc, char **argv)
 			vel_pub.publish(follow_cmd); 
 		}else if(world_state == 1){
 			// Case 1: when the robot cannot continue to track the person due to a static obstacle in its path 			
-			// Play fear sound 
-			sc.playWave(path_to_sounds + "fear.wav"); 
-			// Show fear emotion 
-			Mat img = imread(path_to_images + "fear.jpg", IMREAD_COLOR); 
+			// Display image and play sound to show emotion 
+			sc.playWave(path_to_sounds + "fear.wav");
+			Mat img = imread(path_to_images + "fear.jpg", IMREAD_COLOR);
+			resize(img, img, Size(img.cols / 2, img.rows / 2)); 
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
+
+			// Robot moves back as a sign of fear 
+			std::chrono::time_point<std::chrono::system_clock> case_start = std::chrono::system_clock::now();
+			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 1){ 
+				vel.linear.x = -0.3;
+				vel_pub.publish(vel); 
+			}
+			vel.linear.x = 0.0; 
+			vel_pub.publish(vel); 
+
 			destroyAllWindows(); 
 			sc.stopWave(path_to_sounds + "fear.wav"); 
 		}else if (world_state == 2){
 			// Case 2: when the robot loses track of the person it is following 
-			// Play anger sound 
+			// Display image and play sound to show emotion 
 			sc.playWave(path_to_sounds + "angry.wav");
-			// Show anger emotion 
 			Mat img = imread(path_to_images + "angry.jpg", IMREAD_COLOR);
+			resize(img, img, Size(img.cols / 2, img.rows / 2)); 
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
-			waitKey(2000); 
+			waitKey(2000);
+			
+			// Robot shakes left and right to show anger 
+			std::chrono::time_point<std::chrono::system_clock> case_start = std::chrono::system_clock::now();
+			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 1){ 
+				vel.angular.z = 2.0;
+				vel_pub.publish(vel); 
+			}
+			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 2){ 
+				vel.angular.z = -2.0;
+				vel_pub.publish(vel); 
+			}
+			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 3){ 
+				vel.angular.z = 2.0;
+				vel_pub.publish(vel); 
+			}
+			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 4){ 
+				vel.angular.z = -2.0;
+				vel_pub.publish(vel); 
+			}
+			vel.angular.z = 0.0; 
+			vel_pub.publish(vel); 
+			std::this_thread::sleep_for(std::chrono::seconds(1)); 
+
 			destroyAllWindows(); 
-			sc.stopWave(path_to_sounds + "angry.wav"); 
+			sc.stopWave(path_to_sounds + "angry.wav");
 		}else if (world_state == 3){
 			// Case 3: when two bumpers of the robot are being pressed at the same time as a sign of intimitation 
-			// Play rage sound 
+			// Display image and play sound to show emotion 
 			sc.playWave(path_to_sounds + "rage.wav");
-			// Show rage emotion 
 			Mat img = imread(path_to_images + "rage.jpg", IMREAD_COLOR);
+			resize(img, img, Size(img.cols / 2, img.rows / 2)); 
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
+
+			// Robot tries to hit the person while being rage
+			std::chrono::time_point<std::chrono::system_clock> case_start = std::chrono::system_clock::now();
+			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 1){ 
+				vel.linear.x = 2.0;
+				vel_pub.publish(vel); 
+			}
+			vel.linear.x = 0.0; 
+			vel_pub.publish(vel); 
+
 			destroyAllWindows(); 
-			sc.stopWave(path_to_sounds + "rage.wav"); 
+			sc.stopWave(path_to_sounds + "rage.wav");  
 		}else if (world_state == 4){
-			// Case 4: when the robot stops following after 6 minutes as the task is completed 
-			// Play pride sound 
+			// Case 4: when the robot stops following after 4 minutes as the task is completed
+			// Display image and play sound to show emotion  
 			sc.playWave(path_to_sounds + "pride.wav");
-			// Show pride emotion 
 			Mat img = imread(path_to_images + "pride.jpg", IMREAD_COLOR);
+			resize(img, img, Size(img.cols / 2, img.rows / 2)); 
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
+
+			// Robot turns in a circle as a sign of pride 
+			std::chrono::time_point<std::chrono::system_clock> case_start = std::chrono::system_clock::now();
+			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 1){ 
+				vel.linear.x = 0.2;
+				vel.angular.z = 1.0; 
+				vel_pub.publish(vel); 
+			}
+			vel.linear.x = 0.0; 
+			vel.angular.z = 0.0; 
+			vel_pub.publish(vel); 
+
 			destroyAllWindows(); 
-			sc.stopWave(path_to_sounds + "pride.wav"); 
+			sc.stopWave(path_to_sounds + "pride.wav");  
 		}
 		secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count();
 		loop_rate.sleep();
