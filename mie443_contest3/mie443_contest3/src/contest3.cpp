@@ -123,12 +123,32 @@ int main(int argc, char **argv)
 			waitKey(2000); 
 
 			// Robot moves back as a sign of fear 
-			std::chrono::time_point<std::chrono::system_clock> case_start = std::chrono::system_clock::now();
-			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 1){ 
-				vel.linear.x = -0.3;
+			std::chrono::time_point<std::chrono::steady_clock> case1_start = std::chrono::steady_clock::now();
+			while(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-case1_start).count() / 1000 <= 500){ 
+				vel.linear.x = -0.1;
 				vel_pub.publish(vel); 
 			}
 			vel.linear.x = 0.0; 
+			vel_pub.publish(vel); 
+			for (float i = 0.0; i < 4.0; i++){
+				while(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-case1_start).count() / 1000 <= 600 + i * 100){ 
+					if (int(i) % 2 == 0){
+						vel.angular.z = 2.0;
+					}
+					else {
+						vel.angular.z = -2.0; 
+					}
+					vel_pub.publish(vel); 
+				}
+			}
+			vel.angular.z = 0.0; 
+			vel_pub.publish(vel);
+			while(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-case1_start).count() / 1000 <= 1500){ 
+				vel.linear.x = -0.2;
+				vel_pub.publish(vel); 
+			}
+			vel.linear.x = 0.0; 
+			vel.angular.z = 0.0; 
 			vel_pub.publish(vel); 
 
 			destroyAllWindows(); 
@@ -144,26 +164,21 @@ int main(int argc, char **argv)
 			waitKey(2000);
 			
 			// Robot shakes left and right to show anger 
-			std::chrono::time_point<std::chrono::system_clock> case_start = std::chrono::system_clock::now();
-			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 1){ 
-				vel.angular.z = 2.0;
-				vel_pub.publish(vel); 
-			}
-			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 2){ 
-				vel.angular.z = -2.0;
-				vel_pub.publish(vel); 
-			}
-			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 3){ 
-				vel.angular.z = 2.0;
-				vel_pub.publish(vel); 
-			}
-			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 4){ 
-				vel.angular.z = -2.0;
-				vel_pub.publish(vel); 
+			std::chrono::time_point<std::chrono::system_clock> case2_start = std::chrono::system_clock::now();
+			for (float i = 0.0; i < 4.0; i++){
+				while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case2_start).count() <= 1 + i){ 
+					if (int(i) % 2 == 0){
+						vel.angular.z = 2.0;
+					}
+					else {
+						vel.angular.z = -2.0;
+					}
+					vel_pub.publish(vel); 
+				}	
 			}
 			vel.angular.z = 0.0; 
 			vel_pub.publish(vel); 
-			std::this_thread::sleep_for(std::chrono::seconds(1)); 
+			std::this_thread::sleep_for(std::chrono::seconds(2)); 
 
 			destroyAllWindows(); 
 			sc.stopWave(path_to_sounds + "angry.wav");
@@ -179,8 +194,8 @@ int main(int argc, char **argv)
 			std::this_thread::sleep_for(std::chrono::seconds(1)); 
 
 			// Robot tries to hit the person while being rage
-			std::chrono::time_point<std::chrono::system_clock> case_start = std::chrono::system_clock::now();
-			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 1){ 
+			std::chrono::time_point<std::chrono::system_clock> case3_start = std::chrono::system_clock::now();
+			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case3_start).count() <= 1){ 
 				vel.linear.x = 2.5;
 				vel_pub.publish(vel); 
 			}
@@ -200,8 +215,8 @@ int main(int argc, char **argv)
 			waitKey(2000); 
 
 			// Robot turns in a circle as a sign of pride 
-			std::chrono::time_point<std::chrono::system_clock> case_start = std::chrono::system_clock::now();
-			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 1){ 
+			std::chrono::time_point<std::chrono::system_clock> case4_start = std::chrono::system_clock::now();
+			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case4_start).count() <= 1){ 
 				vel.linear.x = 0.2;
 				vel.angular.z = 1.0; 
 				vel_pub.publish(vel); 
@@ -212,6 +227,7 @@ int main(int argc, char **argv)
 
 			destroyAllWindows(); 
 			sc.stopWave(path_to_sounds + "pride.wav");  
+			return 0; 
 		}
 		secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count();
 		loop_rate.sleep();
