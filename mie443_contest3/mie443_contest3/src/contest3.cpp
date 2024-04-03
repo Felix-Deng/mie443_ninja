@@ -176,11 +176,12 @@ int main(int argc, char **argv)
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
+			std::this_thread::sleep_for(std::chrono::seconds(1)); 
 
 			// Robot tries to hit the person while being rage
 			std::chrono::time_point<std::chrono::system_clock> case_start = std::chrono::system_clock::now();
 			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case_start).count() <= 1){ 
-				vel.linear.x = 2.0;
+				vel.linear.x = 2.5;
 				vel_pub.publish(vel); 
 			}
 			vel.linear.x = 0.0; 
