@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 			emotion1 = true; 
 		}
 		else if(is_stopped(follow_cmd) && secondsElapsed >= 5){
-			if (secondsElapsed >= 240 && emotion1 && emotion2 && emotion3){
+			if (secondsElapsed >= 180 && emotion1 && emotion2 && emotion3){
 				// Task completed --> pride 
 				world_state = 4; 
 			}
@@ -124,14 +124,14 @@ int main(int argc, char **argv)
 
 			// Robot moves back as a sign of fear 
 			std::chrono::time_point<std::chrono::steady_clock> case1_start = std::chrono::steady_clock::now();
-			while(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-case1_start).count() / 1000 <= 500){ 
+			while(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-case1_start).count() <= 500){ 
 				vel.linear.x = -0.1;
 				vel_pub.publish(vel); 
 			}
 			vel.linear.x = 0.0; 
 			vel_pub.publish(vel); 
-			for (float i = 0.0; i < 4.0; i++){
-				while(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-case1_start).count() / 1000 <= 600 + i * 100){ 
+			for (float i = 0.0; i < 6.0; i++){
+				while(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-case1_start).count() <= 600 + i * 150){ 
 					if (int(i) % 2 == 0){
 						vel.angular.z = 2.0;
 					}
@@ -143,8 +143,8 @@ int main(int argc, char **argv)
 			}
 			vel.angular.z = 0.0; 
 			vel_pub.publish(vel);
-			while(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-case1_start).count() / 1000 <= 1500){ 
-				vel.linear.x = -0.2;
+			while(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-case1_start).count() <= 2500){ 
+				vel.linear.x = -0.5;
 				vel_pub.publish(vel); 
 			}
 			vel.linear.x = 0.0; 
@@ -164,9 +164,9 @@ int main(int argc, char **argv)
 			waitKey(2000);
 			
 			// Robot shakes left and right to show anger 
-			std::chrono::time_point<std::chrono::system_clock> case2_start = std::chrono::system_clock::now();
+			std::chrono::time_point<std::chrono::steady_clock> case2_start = std::chrono::steady_clock::now();
 			for (float i = 0.0; i < 4.0; i++){
-				while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case2_start).count() <= 1 + i){ 
+				while(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-case2_start).count() <= 1000 + i * 1000){ 
 					if (int(i) % 2 == 0){
 						vel.angular.z = 2.0;
 					}
@@ -191,7 +191,7 @@ int main(int argc, char **argv)
 			namedWindow("Display window", WINDOW_AUTOSIZE); 
 			imshow("Display window", img); 
 			waitKey(2000); 
-			std::this_thread::sleep_for(std::chrono::seconds(1)); 
+			sleep(1); 
 
 			// Robot tries to hit the person while being rage
 			std::chrono::time_point<std::chrono::system_clock> case3_start = std::chrono::system_clock::now();
@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 			destroyAllWindows(); 
 			sc.stopWave(path_to_sounds + "rage.wav");  
 		}else if (world_state == 4){
-			// Case 4: when the robot stops following after 4 minutes as the task is completed
+			// Case 4: when the robot stops following after 3 minutes with other emotions already actuated as the task is completed
 			// Display image and play sound to show emotion  
 			sc.playWave(path_to_sounds + "pride.wav");
 			Mat img = imread(path_to_images + "pride.jpg", IMREAD_COLOR);
@@ -216,7 +216,7 @@ int main(int argc, char **argv)
 
 			// Robot turns in a circle as a sign of pride 
 			std::chrono::time_point<std::chrono::system_clock> case4_start = std::chrono::system_clock::now();
-			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case4_start).count() <= 1){ 
+			while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-case4_start).count() <= 5){ 
 				vel.linear.x = 0.2;
 				vel.angular.z = 1.0; 
 				vel_pub.publish(vel); 
